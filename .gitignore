@@ -1,5 +1,13 @@
 bin/
 obj/
 /packages/
-riderModule.iml
+*.iml
 /_ReSharper.Caches/
+/.idea
+/.vs/
+/.vscode/
+*.user
+*.suo
+.DS_Store
+.env
+appsettings.Local.json
