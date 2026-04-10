@@ -1,0 +1,123 @@
+@page "/workouts"
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+
+<PageTitle>Workouts – Gym Tracker</PageTitle>
+
+<div class="page-header">
+    <h2 class="page-header__title">💪 Workouts</h2>
+    @if (WorkoutService.IsInitialized)
+    {
+        <button class="btn btn-accent" @onclick="CreateNew">+ New Workout</button>
+    }
+</div>
+
+@if (!WorkoutService.IsInitialized)
+{
+    <p class="text-muted ps-3">Loading…</p>
+}
+else if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsFileSetup)
+{
+    <!-- File setup banner -->
+    <div class="file-setup-banner">
+        <div class="file-setup-banner__icon">📁</div>
+        <div class="file-setup-banner__body">
+            <p class="file-setup-banner__title">Choose where to save your workouts</p>
+            <p class="file-setup-banner__desc">
+                Your browser supports saving directly to a file on your device.
+                Pick a location (e.g. your iCloud Drive or OneDrive folder) for
+                automatic cross-device sync — no account needed.
+            </p>
+            <div class="file-setup-banner__actions">
+                <button class="btn btn-accent" @onclick="PickFile">📂 Choose save location</button>
+                <button class="btn btn-ghost btn-sm" @onclick="SkipFileSetup">Use browser storage instead</button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    @if (WorkoutService.IsFileApiSupported)
+    {
+        <div class="file-status">
+            <span class="file-status__label">💾 Saving to file</span>
+            <button class="btn btn-ghost btn-sm" @onclick="ChangeFile">Change file…</button>
+        </div>
+    }
+
+    @if (_workouts is null)
+    {
+        <p class="text-muted ps-3">Loading…</p>
+    }
+    else if (_workouts.Count == 0)
+    {
+        <div class="empty-state">
+            <div class="empty-state__icon">📋</div>
+            <p class="empty-state__text">No workouts yet. Create your first one!</p>
+            <button class="btn btn-accent" @onclick="CreateNew">+ New Workout</button>
+        </div>
+    }
+    else
+    {
+        <div class="workout-list">
+            @foreach (var w in _workouts.OrderByDescending(x => x.Date))
+            {
+                <div class="workout-list__item">
+                    <div class="workout-list__info">
+                        <span class="workout-list__name">@w.Name</span>
+                        <span class="workout-list__meta">
+                            @w.Date.ToString("dd MMM yyyy") · @w.Exercises.Count exercise@(w.Exercises.Count == 1 ? "" : "s")
+                        </span>
+                    </div>
+                    <div class="workout-list__actions">
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(w.Id)">✏️ Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(w.Id)">🗑️</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<Workout>? _workouts;
+    private bool _skipFileSetup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+        if (!WorkoutService.NeedsFileSetup || _skipFileSetup)
+            _workouts = await WorkoutService.GetAllAsync();
+    }
+
+    private async Task PickFile()
+    {
+        var picked = await WorkoutService.PickFileAsync();
+        if (picked)
+            _workouts = await WorkoutService.GetAllAsync();
+    }
+
+    private async Task SkipFileSetup()
+    {
+        _skipFileSetup = true;
+        // Treat as localStorage-only for this session
+        WorkoutService.NeedsFileSetup = false;
+        WorkoutService.IsFileApiSupported = false;
+        _workouts = await WorkoutService.GetAllAsync();
+    }
+
+    private async Task ChangeFile()
+    {
+        await WorkoutService.ClearFileHandleAsync();
+        _workouts = null;
+    }
+
+    private void CreateNew() => Nav.NavigateTo("/workouts/new");
+    private void Edit(Guid id) => Nav.NavigateTo($"/workouts/{id}");
+
+    private async Task Delete(Guid id)
+    {
+        await WorkoutService.DeleteAsync(id);
+        _workouts = await WorkoutService.GetAllAsync();
+    }
+}

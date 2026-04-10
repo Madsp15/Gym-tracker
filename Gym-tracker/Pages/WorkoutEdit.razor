@@ -1,0 +1,173 @@
+@page "/workouts/new"
+@page "/workouts/{Id:guid}"
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "New Workout" : "Edit Workout") – Gym Tracker</PageTitle>
+
+<div class="page-header">
+    <button class="btn btn-sm btn-ghost" @onclick="Cancel">← Back</button>
+    <h2 class="page-header__title">@(_isNew ? "New Workout" : "Edit Workout")</h2>
+</div>
+
+<div class="workout-form">
+    <!-- Workout name -->
+    <div class="mb-3">
+        <label class="form-label workout-form__label" for="workoutName">Workout Name</label>
+        <input id="workoutName"
+               class="form-control workout-form__input"
+               placeholder="e.g. Push Day"
+               @bind="_workout.Name" />
+    </div>
+
+    <!-- Date -->
+    <div class="mb-4">
+        <label class="form-label workout-form__label" for="workoutDate">Date</label>
+        <input id="workoutDate"
+               type="date"
+               class="form-control workout-form__input"
+               @bind="_workout.Date" />
+    </div>
+
+    <!-- Exercise list -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="workout-form__section-title mb-0">Exercises</h5>
+        <button class="btn btn-sm btn-accent" @onclick="AddExercise">+ Add Exercise</button>
+    </div>
+
+    @if (_workout.Exercises.Count == 0)
+    {
+        <p class="text-muted small ps-1 mb-3">No exercises yet — add one above.</p>
+    }
+
+    @for (var i = 0; i < _workout.Exercises.Count; i++)
+    {
+        var idx = i;
+        var ex = _workout.Exercises[idx];
+
+        <div class="exercise-row @(ex.Type == ExerciseType.Timed ? "exercise-row--timed" : "")">
+            <div class="exercise-row__header">
+                <span class="exercise-row__num">@(idx + 1)</span>
+                <input class="form-control form-control-sm exercise-row__name"
+                       placeholder="Exercise name"
+                       @bind="ex.Name" />
+                <button class="btn btn-sm btn-ghost exercise-row__remove"
+                        title="Remove"
+                        @onclick="() => RemoveExercise(idx)">✕</button>
+            </div>
+
+            <!-- Type toggle -->
+            <div class="exercise-row__type-toggle">
+                <button class="type-btn @(ex.Type == ExerciseType.RepsWeight ? "type-btn--active" : "")"
+                        @onclick="() => SetType(ex, ExerciseType.RepsWeight)">
+                    Reps + Weight
+                </button>
+                <button class="type-btn @(ex.Type == ExerciseType.Timed ? "type-btn--active" : "")"
+                        @onclick="() => SetType(ex, ExerciseType.Timed)">
+                    Timed
+                </button>
+            </div>
+
+            <!-- Fields -->
+            @if (ex.Type == ExerciseType.RepsWeight)
+            {
+                <div class="exercise-row__fields">
+                    <div class="exercise-row__field">
+                        <label class="exercise-row__field-label">Reps</label>
+                        <input type="number" min="1" class="form-control form-control-sm"
+                               placeholder="12"
+                               value="@ex.Reps"
+                               @onchange="e => ex.Reps = ParseInt(e.Value)" />
+                    </div>
+                    <div class="exercise-row__field">
+                        <label class="exercise-row__field-label">Weight (kg)</label>
+                        <input type="number" min="0" step="0.5" class="form-control form-control-sm"
+                               placeholder="60"
+                               value="@ex.WeightKg"
+                               @onchange="e => ex.WeightKg = ParseDouble(e.Value)" />
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="exercise-row__fields">
+                    <div class="exercise-row__field">
+                        <label class="exercise-row__field-label">Duration (s)</label>
+                        <input type="number" min="1" class="form-control form-control-sm"
+                               placeholder="60"
+                               value="@ex.DurationSeconds"
+                               @onchange="e => ex.DurationSeconds = ParseInt(e.Value)" />
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Save -->
+    <div class="workout-form__footer">
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <span class="workout-form__error">@_error</span>
+        }
+        <button class="btn btn-accent btn-lg w-100" @onclick="Save">💾 Save Workout</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private Workout _workout = new();
+    private bool _isNew = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            var workouts = await WorkoutService.GetAllAsync();
+            var existing = workouts.FirstOrDefault(w => w.Id == Id.Value);
+            if (existing is not null)
+            {
+                _workout = existing;
+                _isNew = false;
+            }
+        }
+    }
+
+    private void AddExercise() => _workout.Exercises.Add(new Exercise());
+    private void RemoveExercise(int idx) => _workout.Exercises.RemoveAt(idx);
+
+    private void SetType(Exercise ex, ExerciseType type)
+    {
+        ex.Type = type;
+        // Clear irrelevant fields
+        if (type == ExerciseType.RepsWeight)
+            ex.DurationSeconds = null;
+        else
+        {
+            ex.Reps = null;
+            ex.WeightKg = null;
+        }
+    }
+
+    private async Task Save()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_workout.Name))
+        {
+            _error = "Please enter a workout name.";
+            return;
+        }
+        await WorkoutService.SaveAsync(_workout);
+        Nav.NavigateTo("/workouts");
+    }
+
+    private void Cancel() => Nav.NavigateTo("/workouts");
+
+    private static int? ParseInt(object? value) =>
+        int.TryParse(value?.ToString(), out var v) ? v : null;
+
+    private static double? ParseDouble(object? value) =>
+        double.TryParse(value?.ToString(), out var v) ? v : null;
+}
+

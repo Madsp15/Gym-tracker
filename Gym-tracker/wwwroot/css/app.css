@@ -1,5 +1,7 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    background-color: #0f1420;
+    color: #D0DCF1;
 }
 
 h1:focus {
@@ -7,17 +9,17 @@ h1:focus {
 }
 
 a, .btn-link {
-    color: #0071c1;
+    color: #6A5BC2;
 }
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background-color: #2F57A0;
+    border-color: #264a8a;
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #6A5BC2;
 }
 
 .content {
@@ -85,7 +87,7 @@ a, .btn-link {
     }
 
         .loading-progress circle:last-child {
-            stroke: #1b6ec2;
+            stroke: #6A5BC2;
             stroke-dasharray: calc(3.141 * var(--blazor-load-percentage, 0%) * 0.8), 500%;
             transition: stroke-dasharray 0.05s ease-in-out;
         }
@@ -102,7 +104,7 @@ a, .btn-link {
     }
 
 code {
-    color: #c02d76;
+    color: #AE249A;
 }
 
 .form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
@@ -113,3 +115,426 @@ code {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+/* ── Home page ─────────────────────────────────────── */
+
+.home-hero {
+    background: linear-gradient(135deg, #2F57A0 0%, #6A5BC2 55%, #AE249A 100%);
+    padding: 3rem 1.5rem 2.5rem;
+    text-align: center;
+    border-radius: 0 0 2rem 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.home-hero__inner {
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.home-hero__icon {
+    font-size: 3.5rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.home-hero__title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.4rem;
+}
+
+.home-hero__subtitle {
+    color: rgba(255,255,255,0.85);
+    font-size: 1rem;
+    margin: 0;
+}
+
+/* ── Quick-action cards ─────────────────────────────── */
+
+.home-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    padding: 0 1rem 2rem;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.home-card {
+    background: #192033;
+    border-radius: 1rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+    border: 1px solid #283a5a;
+}
+
+.home-card:hover,
+.home-card:active {
+    background: #1e2a44;
+    transform: translateY(-2px);
+}
+
+.home-card--placeholder {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.home-card--placeholder:hover {
+    transform: none;
+    background: #192033;
+}
+
+.home-card__icon {
+    font-size: 2rem;
+    margin-bottom: 0.4rem;
+}
+
+.home-card__label {
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: #D0DCF1;
+}
+
+.home-card__hint {
+    font-size: 0.75rem;
+    color: #7d90b5;
+    margin-top: 0.2rem;
+}
+
+/* ── Page header ────────────────────────────────────── */
+
+.page-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1rem 0.5rem;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.page-header__title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #D0DCF1;
+    margin: 0;
+    flex: 1;
+}
+
+/* ── Accent button ──────────────────────────────────── */
+
+.btn-accent {
+    background-color: #6A5BC2;
+    color: #fff;
+    border: none;
+    border-radius: 0.5rem;
+    padding: 0.4rem 1rem;
+    font-weight: 600;
+    transition: background 0.15s ease;
+}
+
+.btn-accent:hover,
+.btn-accent:focus {
+    background-color: #7c6ed4;
+    color: #fff;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: #7d90b5;
+    border: 1px solid #283a5a;
+    border-radius: 0.5rem;
+    padding: 0.3rem 0.75rem;
+    transition: background 0.15s ease;
+}
+
+.btn-ghost:hover {
+    background: #192033;
+    color: #D0DCF1;
+}
+
+/* ── Empty state ────────────────────────────────────── */
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #7d90b5;
+}
+
+.empty-state__icon {
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+}
+
+.empty-state__text {
+    margin-bottom: 1.25rem;
+}
+
+/* ── Workout list ───────────────────────────────────── */
+
+.workout-list {
+    max-width: 640px;
+    margin: 0.75rem auto 2rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.workout-list__item {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    padding: 0.9rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.workout-list__info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.workout-list__name {
+    font-weight: 600;
+    color: #D0DCF1;
+    font-size: 1rem;
+}
+
+.workout-list__meta {
+    font-size: 0.78rem;
+    color: #7d90b5;
+}
+
+.workout-list__actions {
+    display: flex;
+    gap: 0.4rem;
+}
+
+/* ── Workout form ───────────────────────────────────── */
+
+.workout-form {
+    max-width: 640px;
+    margin: 0.75rem auto 2rem;
+    padding: 0 1rem;
+}
+
+.workout-form__label {
+    color: #7d90b5;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.workout-form__input {
+    background: #192033;
+    border: 1px solid #283a5a;
+    color: #D0DCF1;
+    border-radius: 0.5rem;
+}
+
+.workout-form__input:focus {
+    background: #1e2a44;
+    color: #D0DCF1;
+    border-color: #6A5BC2;
+}
+
+.workout-form__section-title {
+    color: #D0DCF1;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.workout-form__footer {
+    margin-top: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.workout-form__error {
+    color: #ff6b6b;
+    font-size: 0.875rem;
+}
+
+/* ── Exercise row ───────────────────────────────────── */
+
+.exercise-row {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    padding: 0.85rem 0.9rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.15s ease;
+}
+
+.exercise-row--timed {
+    border-color: #2F57A0;
+}
+
+.exercise-row__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+
+.exercise-row__num {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #6A5BC2;
+    min-width: 1.2rem;
+    text-align: center;
+}
+
+.exercise-row__name {
+    flex: 1;
+    background: #0f1420;
+    border-color: #283a5a;
+    color: #D0DCF1;
+}
+
+.exercise-row__name:focus {
+    background: #0f1420;
+    color: #D0DCF1;
+    border-color: #6A5BC2;
+}
+
+.exercise-row__remove {
+    color: #ff6b6b;
+    border-color: transparent;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.8rem;
+}
+
+/* Type toggle */
+.exercise-row__type-toggle {
+    display: flex;
+    gap: 0.4rem;
+    margin-bottom: 0.65rem;
+}
+
+.type-btn {
+    flex: 1;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 0.4rem;
+    padding: 0.3rem 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.type-btn:hover {
+    background: #1e2a44;
+    color: #D0DCF1;
+}
+
+.type-btn--active {
+    background: #6A5BC2;
+    border-color: #6A5BC2;
+    color: #fff;
+}
+
+/* Exercise fields */
+.exercise-row__fields {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.exercise-row__field {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.exercise-row__field-label {
+    font-size: 0.72rem;
+    color: #7d90b5;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.exercise-row__field .form-control {
+    background: #0f1420;
+    border-color: #283a5a;
+    color: #D0DCF1;
+}
+
+.exercise-row__field .form-control:focus {
+    background: #0f1420;
+    color: #D0DCF1;
+    border-color: #6A5BC2;
+}
+
+/* ── File setup banner ──────────────────────────────── */
+
+.file-setup-banner {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    background: #192033;
+    border: 1px solid #6A5BC2;
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    max-width: 640px;
+    margin: 0.75rem auto 1.5rem;
+}
+
+.file-setup-banner__icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.file-setup-banner__body {
+    flex: 1;
+}
+
+.file-setup-banner__title {
+    font-weight: 700;
+    color: #D0DCF1;
+    margin-bottom: 0.35rem;
+    font-size: 1rem;
+}
+
+.file-setup-banner__desc {
+    color: #7d90b5;
+    font-size: 0.85rem;
+    margin-bottom: 0.85rem;
+    line-height: 1.5;
+}
+
+.file-setup-banner__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* ── File status bar ────────────────────────────────── */
+
+.file-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 640px;
+    margin: 0 auto 0.5rem;
+    padding: 0 1rem;
+}
+
+.file-status__label {
+    font-size: 0.8rem;
+    color: #7d90b5;
+    flex: 1;
+}
+
