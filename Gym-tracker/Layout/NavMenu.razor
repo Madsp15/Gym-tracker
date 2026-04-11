@@ -1,6 +1,6 @@
 ﻿<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">🏋️ Gym Tracker</a>
+        <a class="navbar-brand" href="/">Gym Tracker</a>
         <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -15,8 +15,18 @@
             </NavLink>
         </div>
         <div class="nav-item px-3">
+            <NavLink class="nav-link" href="templates">
+                <span class="bi bi-grid-fill-nav-menu" aria-hidden="true"></span> Templates
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
             <NavLink class="nav-link" href="workouts">
-                💪 Workouts
+                <span class="bi bi-activity-nav-menu" aria-hidden="true"></span> Logged Workouts
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="progress">
+                <span class="bi bi-graph-up-nav-menu" aria-hidden="true"></span> Progress
             </NavLink>
         </div>
     </nav>
@@ -32,4 +42,3 @@
         _collapseNavMenu = !_collapseNavMenu;
     }
 }
-

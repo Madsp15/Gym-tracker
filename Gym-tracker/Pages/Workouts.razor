@@ -2,13 +2,13 @@
 @inject WorkoutService WorkoutService
 @inject NavigationManager Nav
 
-<PageTitle>Workouts – Gym Tracker</PageTitle>
+<PageTitle>Logged Workouts – Gym Tracker</PageTitle>
 
 <div class="page-header">
-    <h2 class="page-header__title">💪 Workouts</h2>
-    @if (WorkoutService.IsInitialized)
+    <h2 class="page-header__title">Logged Workouts</h2>
+    @if (WorkoutService.IsInitialized && !WorkoutService.NeedsFileSetup)
     {
-        <button class="btn btn-accent" @onclick="CreateNew">+ New Workout</button>
+        <button class="btn btn-accent" @onclick="LogNew">+ Log</button>
     }
 </div>
 
@@ -18,9 +18,7 @@
 }
 else if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsFileSetup)
 {
-    <!-- File setup banner -->
     <div class="file-setup-banner">
-        <div class="file-setup-banner__icon">📁</div>
         <div class="file-setup-banner__body">
             <p class="file-setup-banner__title">Choose where to save your workouts</p>
             <p class="file-setup-banner__desc">
@@ -29,7 +27,7 @@ else if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsFileSetup)
                 automatic cross-device sync — no account needed.
             </p>
             <div class="file-setup-banner__actions">
-                <button class="btn btn-accent" @onclick="PickFile">📂 Choose save location</button>
+                <button class="btn btn-accent" @onclick="PickFile">Choose save location</button>
                 <button class="btn btn-ghost btn-sm" @onclick="SkipFileSetup">Use browser storage instead</button>
             </div>
         </div>
@@ -40,7 +38,7 @@ else
     @if (WorkoutService.IsFileApiSupported)
     {
         <div class="file-status">
-            <span class="file-status__label">💾 Saving to file</span>
+            <span class="file-status__label">Saving to file</span>
             <button class="btn btn-ghost btn-sm" @onclick="ChangeFile">Change file…</button>
         </div>
     }
@@ -52,72 +50,245 @@ else
     else if (_workouts.Count == 0)
     {
         <div class="empty-state">
-            <div class="empty-state__icon">📋</div>
-            <p class="empty-state__text">No workouts yet. Create your first one!</p>
-            <button class="btn btn-accent" @onclick="CreateNew">+ New Workout</button>
+            <p class="empty-state__text">No logged workouts yet. Log your first workout!</p>
+            <button class="btn btn-accent" @onclick="LogNew">+ Log Workout</button>
         </div>
     }
     else
     {
-        <div class="workout-list">
-            @foreach (var w in _workouts.OrderByDescending(x => x.Date))
-            {
-                <div class="workout-list__item">
-                    <div class="workout-list__info">
-                        <span class="workout-list__name">@w.Name</span>
-                        <span class="workout-list__meta">
-                            @w.Date.ToString("dd MMM yyyy") · @w.Exercises.Count exercise@(w.Exercises.Count == 1 ? "" : "s")
-                        </span>
-                    </div>
-                    <div class="workout-list__actions">
-                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(w.Id)">✏️ Edit</button>
-                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(w.Id)">🗑️</button>
-                    </div>
-                </div>
-            }
+        <div class="view-toggle">
+            <button class="view-toggle__btn @(_viewMode == "list" ? "view-toggle__btn--active" : "")" @onclick="ShowList">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.3em"><path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/></svg>List
+            </button>
+            <button class="view-toggle__btn @(_viewMode == "calendar" ? "view-toggle__btn--active" : "")" @onclick="ShowCalendar">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.3em"><path d="M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5zM1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4H1z"/></svg>Calendar
+            </button>
         </div>
+
+        @if (_viewMode == "list")
+        {
+            <div class="workout-list">
+                @foreach (var w in _workouts.OrderByDescending(x => x.Date))
+                {
+                    <div class="workout-list__item">
+                        <div class="workout-list__info">
+                            <span class="workout-list__name">@w.Name</span>
+                            <span class="workout-list__meta">
+                                @w.Date.ToString("dd MMM yyyy") · @w.Exercises.Count exercise@(w.Exercises.Count == 1 ? "" : "s")
+                            </span>
+                        </div>
+                        <div class="workout-list__actions">
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(w.Id)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(w.Id)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6zM14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>Delete
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="cal-wrapper">
+                <div class="cal-nav">
+                    <button class="cal-nav__btn" @onclick="PrevMonth">&#8249;</button>
+                    <span class="cal-nav__title">@_calendarMonth.ToString("MMMM yyyy")</span>
+                    <button class="cal-nav__btn" @onclick="NextMonth">&#8250;</button>
+                </div>
+
+                <div class="cal-grid">
+                    <div class="cal-header__cell">Mo</div>
+                    <div class="cal-header__cell">Tu</div>
+                    <div class="cal-header__cell">We</div>
+                    <div class="cal-header__cell">Th</div>
+                    <div class="cal-header__cell">Fr</div>
+                    <div class="cal-header__cell">Sa</div>
+                    <div class="cal-header__cell">Su</div>
+
+                    @for (int i = 0; i < CalendarOffset; i++)
+                    {
+                        <div class="cal-cell cal-cell--empty"></div>
+                    }
+
+                    @for (int d = 1; d <= DaysInCalendarMonth; d++)
+                    {
+                        var day = new DateOnly(_calendarMonth.Year, _calendarMonth.Month, d);
+                        <div class="cal-cell @GetCellClass(day)" @onclick="() => SelectDate(day)">
+                            <span class="cal-cell__num">@d</span>
+                            @if (WorkoutsByDate.ContainsKey(day))
+                            {
+                                <span class="cal-cell__dot"></span>
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (_selectedDate.HasValue)
+                {
+                    <div class="cal-detail">
+                        <div class="cal-detail__header">
+                            <span class="cal-detail__date">@_selectedDate.Value.ToString("dddd, d MMMM")</span>
+                            <button class="btn btn-sm btn-accent" @onclick="() => LogForDate(_selectedDate.Value)">+ Log</button>
+                        </div>
+                        @if (SelectedDateWorkouts != null && SelectedDateWorkouts.Count > 0)
+                        {
+                            @foreach (var w in SelectedDateWorkouts)
+                            {
+                                <div class="cal-detail__item">
+                                    <div class="cal-detail__item-info">
+                                        <span class="cal-detail__item-name">@w.Name</span>
+                                        <span class="cal-detail__item-meta">@w.Exercises.Count exercise@(w.Exercises.Count == 1 ? "" : "s")</span>
+                                    </div>
+                                    <div class="cal-detail__item-actions">
+                                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(w.Id)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>Edit
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(w.Id)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6zM14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>Delete
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <p class="cal-detail__empty">No workouts on this day yet.</p>
+                        }
+                    </div>
+                }
+            </div>
+        }
     }
 }
 
 @code {
-    private List<Workout>? _workouts;
+    private List<LoggedWorkout>? _workouts;
     private bool _skipFileSetup;
+    private string _viewMode = "calendar";
+    private DateOnly _calendarMonth = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateOnly? _selectedDate;
+    private Dictionary<DateOnly, List<LoggedWorkout>>? _workoutsByDate;
+
+    // ── Calendar computed properties ──────────────────────────────────
+
+    private Dictionary<DateOnly, List<LoggedWorkout>> WorkoutsByDate =>
+        _workoutsByDate ??= BuildWorkoutsByDate();
+
+    private Dictionary<DateOnly, List<LoggedWorkout>> BuildWorkoutsByDate()
+    {
+        var dict = new Dictionary<DateOnly, List<LoggedWorkout>>();
+        if (_workouts is null) return dict;
+        foreach (var w in _workouts)
+        {
+            var key = DateOnly.FromDateTime(w.Date);
+            if (!dict.TryGetValue(key, out var list))
+                dict[key] = list = new();
+            list.Add(w);
+        }
+        return dict;
+    }
+
+    private List<LoggedWorkout>? SelectedDateWorkouts
+    {
+        get
+        {
+            if (!_selectedDate.HasValue) return null;
+            return WorkoutsByDate.TryGetValue(_selectedDate.Value, out var list) ? list : null;
+        }
+    }
+
+    private int DaysInCalendarMonth =>
+        DateTime.DaysInMonth(_calendarMonth.Year, _calendarMonth.Month);
+
+    private int CalendarOffset
+    {
+        get
+        {
+            var first = new DateOnly(_calendarMonth.Year, _calendarMonth.Month, 1);
+            // Monday-start: Mon=0 … Sun=6
+            return ((int)first.DayOfWeek + 6) % 7;
+        }
+    }
+
+    private string GetCellClass(DateOnly day)
+    {
+        var classes = new System.Text.StringBuilder();
+        if (day == DateOnly.FromDateTime(DateTime.Today)) classes.Append(" cal-cell--today");
+        if (day == _selectedDate) classes.Append(" cal-cell--selected");
+        if (WorkoutsByDate.ContainsKey(day)) classes.Append(" cal-cell--has-workouts");
+        return classes.ToString();
+    }
+
+    private void SelectDate(DateOnly day)
+    {
+        // Toggle off if same day tapped again, otherwise select any day
+        _selectedDate = _selectedDate == day ? null : day;
+    }
+
+    private void ShowList() => _viewMode = "list";
+    private void ShowCalendar() => _viewMode = "calendar";
+    private void LogForDate(DateOnly day) =>
+        Nav.NavigateTo($"/workouts/log?date={day:yyyy-MM-dd}");
+
+    private void PrevMonth()
+    {
+        _calendarMonth = _calendarMonth.AddMonths(-1);
+        _selectedDate = null;
+    }
+
+    private void NextMonth()
+    {
+        _calendarMonth = _calendarMonth.AddMonths(1);
+        _selectedDate = null;
+    }
+
+    // ── Data loading ──────────────────────────────────────────────────
 
     protected override async Task OnInitializedAsync()
     {
         await WorkoutService.InitializeAsync();
         if (!WorkoutService.NeedsFileSetup || _skipFileSetup)
-            _workouts = await WorkoutService.GetAllAsync();
+            await LoadWorkoutsAsync();
+    }
+
+    private async Task LoadWorkoutsAsync()
+    {
+        _workouts = await WorkoutService.GetLoggedWorkoutsAsync();
+        _workoutsByDate = null; // invalidate cache
+        // clear selection if that date no longer has workouts
+        if (_selectedDate.HasValue && !WorkoutsByDate.ContainsKey(_selectedDate.Value))
+            _selectedDate = null;
     }
 
     private async Task PickFile()
     {
         var picked = await WorkoutService.PickFileAsync();
-        if (picked)
-            _workouts = await WorkoutService.GetAllAsync();
+        if (picked) await LoadWorkoutsAsync();
     }
 
     private async Task SkipFileSetup()
     {
         _skipFileSetup = true;
-        // Treat as localStorage-only for this session
         WorkoutService.NeedsFileSetup = false;
         WorkoutService.IsFileApiSupported = false;
-        _workouts = await WorkoutService.GetAllAsync();
+        await LoadWorkoutsAsync();
     }
 
     private async Task ChangeFile()
     {
         await WorkoutService.ClearFileHandleAsync();
         _workouts = null;
+        _workoutsByDate = null;
     }
 
-    private void CreateNew() => Nav.NavigateTo("/workouts/new");
+    private void LogNew() => Nav.NavigateTo("/workouts/log");
     private void Edit(Guid id) => Nav.NavigateTo($"/workouts/{id}");
 
     private async Task Delete(Guid id)
     {
-        await WorkoutService.DeleteAsync(id);
-        _workouts = await WorkoutService.GetAllAsync();
+        await WorkoutService.DeleteLoggedWorkoutAsync(id);
+        await LoadWorkoutsAsync();
     }
 }

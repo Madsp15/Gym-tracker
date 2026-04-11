@@ -538,3 +538,52 @@ code {
     flex: 1;
 }
 
+/* ── Sets section (for logged exercises) ────────────── */
+
+.sets-section {
+    background: #0f1420;
+    border-radius: 0.5rem;
+    padding: 0.75rem;
+    margin-top: 0.65rem;
+    border: 1px solid #283a5a;
+}
+
+.set-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #283a5a;
+}
+
+.set-row:last-child {
+    border-bottom: none;
+}
+
+.set-row__num {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #7d90b5;
+    min-width: 3.5rem;
+    flex-shrink: 0;
+}
+
+.set-row__fields {
+    flex: 1;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.set-row__input {
+    background: #192033;
+    border-color: #283a5a;
+    color: #D0DCF1;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.5rem;
+}
+
+.set-row__input:focus {
+    background: #192033;
+    color: #D0DCF1;
+    border-color: #6A5BC2;
+}

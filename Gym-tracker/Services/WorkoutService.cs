@@ -34,7 +34,6 @@ public class WorkoutService(IJSRuntime js)
 
     /// <summary>
     /// Opens the OS "Save As" picker. Must be called from a user-gesture handler.
-    /// Migrates any existing localStorage data into the new file automatically.
     /// </summary>
     public async Task<bool> PickFileAsync()
     {
@@ -42,12 +41,6 @@ public class WorkoutService(IJSRuntime js)
         if (!picked) return false;
 
         NeedsFileSetup = false;
-
-        // Migrate existing localStorage data into the new file
-        var existing = await ReadFromLocalStorageAsync();
-        if (existing.Count > 0)
-            await WriteToFileAsync(existing);
-
         return true;
     }
 
@@ -58,72 +51,154 @@ public class WorkoutService(IJSRuntime js)
         NeedsFileSetup = true;
     }
 
-    // ── Public CRUD ──────────────────────────────────────────────────────────
+    // ── Public CRUD: Templates ──────────────────────────────────────────────
 
+    public async Task<List<WorkoutTemplate>> GetTemplatesAsync()
+    {
+        var store = await ReadStoreAsync();
+        return store.Templates;
+    }
+
+    public async Task SaveTemplateAsync(WorkoutTemplate template)
+    {
+        var store = await ReadStoreAsync();
+        var idx = store.Templates.FindIndex(t => t.Id == template.Id);
+        if (idx >= 0) store.Templates[idx] = template;
+        else store.Templates.Add(template);
+        await PersistStoreAsync(store);
+    }
+
+    public async Task DeleteTemplateAsync(Guid id)
+    {
+        var store = await ReadStoreAsync();
+        store.Templates.RemoveAll(t => t.Id == id);
+        await PersistStoreAsync(store);
+    }
+
+    // ── Public CRUD: Logged Workouts ─────────────────────────────────────
+
+    public async Task<List<LoggedWorkout>> GetLoggedWorkoutsAsync()
+    {
+        var store = await ReadStoreAsync();
+        return store.LoggedWorkouts;
+    }
+
+    public async Task SaveLoggedWorkoutAsync(LoggedWorkout workout)
+    {
+        var store = await ReadStoreAsync();
+        var idx = store.LoggedWorkouts.FindIndex(w => w.Id == workout.Id);
+        if (idx >= 0) store.LoggedWorkouts[idx] = workout;
+        else store.LoggedWorkouts.Add(workout);
+        await PersistStoreAsync(store);
+    }
+
+    public async Task DeleteLoggedWorkoutAsync(Guid id)
+    {
+        var store = await ReadStoreAsync();
+        store.LoggedWorkouts.RemoveAll(w => w.Id == id);
+        await PersistStoreAsync(store);
+    }
+
+    // ── Legacy: Support old Workout model ────────────────────────────────
+    [Obsolete("Use GetLoggedWorkoutsAsync() instead.")]
     public async Task<List<Workout>> GetAllAsync()
     {
-        if (IsFileApiSupported && !NeedsFileSetup)
-            return await ReadFromFileAsync();
-
-        return await ReadFromLocalStorageAsync();
+        var logged = await GetLoggedWorkoutsAsync();
+        // Convert LoggedWorkout back to Workout for backwards compatibility
+        return logged.Select(lw => new Workout
+        {
+            Id = lw.Id,
+            Name = lw.Name,
+            Date = lw.Date,
+            Exercises = lw.Exercises.Select(le => new Exercise
+            {
+                Name = le.Name,
+                Type = le.Type,
+                Reps = le.Sets.FirstOrDefault()?.Reps,
+                WeightKg = le.Sets.FirstOrDefault()?.WeightKg,
+                DurationSeconds = le.Sets.FirstOrDefault()?.DurationSeconds
+            }).ToList()
+        }).ToList();
     }
 
+    [Obsolete("Use SaveLoggedWorkoutAsync() instead.")]
     public async Task SaveAsync(Workout workout)
     {
-        var workouts = await GetAllAsync();
-        var idx = workouts.FindIndex(w => w.Id == workout.Id);
-        if (idx >= 0) workouts[idx] = workout;
-        else workouts.Add(workout);
-        await PersistAsync(workouts);
+        var logged = new LoggedWorkout
+        {
+            Id = workout.Id,
+            Name = workout.Name,
+            Date = workout.Date,
+            Exercises = workout.Exercises.Select(ex => new LoggedExercise
+            {
+                Name = ex.Name,
+                Type = ex.Type,
+                Sets = new List<ExerciseSet>
+                {
+                    new ExerciseSet
+                    {
+                        Reps = ex.Reps,
+                        WeightKg = ex.WeightKg,
+                        DurationSeconds = ex.DurationSeconds
+                    }
+                }
+            }).ToList()
+        };
+        await SaveLoggedWorkoutAsync(logged);
     }
 
+    [Obsolete("Use DeleteLoggedWorkoutAsync() instead.")]
     public async Task DeleteAsync(Guid id)
     {
-        var workouts = await GetAllAsync();
-        workouts.RemoveAll(w => w.Id == id);
-        await PersistAsync(workouts);
+        await DeleteLoggedWorkoutAsync(id);
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 
-    private async Task PersistAsync(List<Workout> workouts)
+    private async Task<WorkoutStore> ReadStoreAsync()
     {
         if (IsFileApiSupported && !NeedsFileSetup)
-            await WriteToFileAsync(workouts);
-        else
-            await WriteToLocalStorageAsync(workouts);
+            return await ReadStoreFromFileAsync();
+
+        return await ReadStoreFromLocalStorageAsync();
     }
 
-    private async Task<List<Workout>> ReadFromFileAsync()
+    private async Task PersistStoreAsync(WorkoutStore store)
+    {
+        if (IsFileApiSupported && !NeedsFileSetup)
+            await WriteStoreToFileAsync(store);
+        else
+            await WriteStoreToLocalStorageAsync(store);
+    }
+
+    private async Task<WorkoutStore> ReadStoreFromFileAsync()
     {
         var text = await js.InvokeAsync<string?>("gymTracker.readFile");
-        if (string.IsNullOrWhiteSpace(text)) return [];
+        if (string.IsNullOrWhiteSpace(text)) return new WorkoutStore();
         try
         {
-            var store = JsonSerializer.Deserialize<WorkoutStore>(text, _json);
-            return store?.Workouts ?? [];
+            return JsonSerializer.Deserialize<WorkoutStore>(text, _json) ?? new WorkoutStore();
         }
-        catch { return []; }
+        catch { return new WorkoutStore(); }
     }
 
-    private async Task WriteToFileAsync(List<Workout> workouts)
+    private async Task WriteStoreToFileAsync(WorkoutStore store)
     {
-        var store = new WorkoutStore { Workouts = workouts };
         var json = JsonSerializer.Serialize(store, _json);
         await js.InvokeAsync<bool>("gymTracker.writeFile", json);
     }
 
-    private async Task<List<Workout>> ReadFromLocalStorageAsync()
+    private async Task<WorkoutStore> ReadStoreFromLocalStorageAsync()
     {
         var json = await js.InvokeAsync<string?>("localStorage.getItem", LocalStorageKey);
-        if (string.IsNullOrEmpty(json)) return [];
-        try { return JsonSerializer.Deserialize<List<Workout>>(json, _json) ?? []; }
-        catch { return []; }
+        if (string.IsNullOrEmpty(json)) return new WorkoutStore();
+        try { return JsonSerializer.Deserialize<WorkoutStore>(json, _json) ?? new WorkoutStore(); }
+        catch { return new WorkoutStore(); }
     }
 
-    private async Task WriteToLocalStorageAsync(List<Workout> workouts)
+    private async Task WriteStoreToLocalStorageAsync(WorkoutStore store)
     {
-        var json = JsonSerializer.Serialize(workouts, _json);
+        var json = JsonSerializer.Serialize(store, _json);
         await js.InvokeVoidAsync("localStorage.setItem", LocalStorageKey, json);
     }
 }

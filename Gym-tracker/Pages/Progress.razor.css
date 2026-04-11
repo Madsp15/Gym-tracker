@@ -1,0 +1,383 @@
+﻿/* ── Summary tiles ─────────────────────────────────────── */
+
+.progress-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    max-width: 640px;
+    margin: 0.75rem auto 1.25rem;
+    padding: 0 1rem;
+}
+
+.progress-summary__tile {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    padding: 0.9rem 0.75rem;
+    text-align: center;
+}
+
+.progress-summary__value {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #6A5BC2;
+    line-height: 1.1;
+}
+
+.progress-summary__label {
+    font-size: 0.68rem;
+    color: #7d90b5;
+    margin-top: 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* ── Sort bar ──────────────────────────────────────────── */
+
+.progress-sort {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 640px;
+    margin: 0 auto 0.75rem;
+    padding: 0 1rem;
+    flex-wrap: wrap;
+}
+
+.progress-sort__label {
+    font-size: 0.78rem;
+    color: #7d90b5;
+    margin-right: 0.1rem;
+}
+
+.progress-sort__btn {
+    background: #192033;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 1rem;
+    padding: 0.25rem 0.8rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.progress-sort__btn:hover {
+    background: #1e2a44;
+    color: #D0DCF1;
+}
+
+.progress-sort__btn--active {
+    background: #6A5BC2;
+    border-color: #6A5BC2;
+    color: #fff;
+}
+
+/* ── Template group header ─────────────────────────────── */
+
+.progress-group-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    padding: 0.35rem 0.1rem 0.2rem;
+    margin-top: 0.5rem;
+}
+
+.progress-group-header__name {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: #7d90b5;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.progress-group-header__count {
+    font-size: 0.72rem;
+    color: #4a5a78;
+}
+
+/* ── Exercise card grid ────────────────────────────────── */
+
+.progress-cards {
+    max-width: 640px;
+    margin: 0 auto 2rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.progress-card {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    padding: 1rem 1rem 0.85rem;
+}
+
+/* ── Card header ───────────────────────────────────────── */
+
+.progress-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.progress-card__name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #D0DCF1;
+}
+
+.progress-card__type-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #2F57A0;
+    color: #fff;
+    border-radius: 0.9rem;
+    padding: 0.15rem 0.55rem;
+    white-space: nowrap;
+}
+
+.progress-card__type-badge--timed {
+    background: #2a6b50;
+}
+
+/* ── Meta row ──────────────────────────────────────────── */
+
+.progress-card__meta-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.15rem;
+}
+
+.progress-card__meta {
+    font-size: 0.78rem;
+    color: #7d90b5;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.progress-card__po-badge {
+    font-size: 0.72rem;
+    color: #f4c542;
+}
+
+.progress-card__date-range {
+    font-size: 0.7rem;
+    color: #4a5a78;
+    margin-bottom: 0.7rem;
+}
+
+/* ── Metric block ──────────────────────────────────────── */
+
+.progress-card__metric {
+    background: #0f1420;
+    border-radius: 0.5rem;
+    padding: 0.7rem 0.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.progress-card__metric-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+
+.progress-card__metric-label {
+    font-size: 0.7rem;
+    color: #7d90b5;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.progress-card__metric-delta {
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 0.9rem;
+    padding: 0.1rem 0.55rem;
+    white-space: nowrap;
+}
+
+.progress-card__metric-delta--up {
+    background: rgba(46, 160, 67, 0.15);
+    color: #4caf7d;
+}
+
+.progress-card__metric-delta--down {
+    background: rgba(255, 107, 107, 0.12);
+    color: #ff6b6b;
+}
+
+.progress-card__metric-delta--same {
+    background: rgba(125, 144, 181, 0.1);
+    color: #7d90b5;
+}
+
+/* ── Weight / duration values row ──────────────────────── */
+
+.progress-card__weight-values {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #D0DCF1;
+    margin-bottom: 0.55rem;
+}
+
+.progress-card__arrow {
+    color: #4a5a78;
+    font-size: 0.9rem;
+}
+
+.progress-card__weight-latest {
+    color: #6A5BC2;
+}
+
+/* ── Progress bar ──────────────────────────────────────── */
+
+.progress-bar-track {
+    height: 6px;
+    background: #283a5a;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2F57A0, #6A5BC2);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    min-width: 3px;
+}
+
+.progress-card__bar-label {
+    font-size: 0.67rem;
+    color: #4a5a78;
+    text-align: right;
+}
+
+/* ── No-data state ─────────────────────────────────────── */
+
+.progress-card__no-data {
+    font-size: 0.8rem;
+    color: #4a5a78;
+    font-style: italic;
+    margin: 0.4rem 0 0.5rem;
+}
+
+/* ── Volume footer ─────────────────────────────────────── */
+
+.progress-card__footer {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    min-height: 1.6rem;
+}
+
+.progress-card__volume {
+    font-size: 0.75rem;
+    color: #7d90b5;
+    flex: 1;
+}
+
+/* ── Chart toggle button ───────────────────────────────── */
+
+.progress-chart__toggle {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 0.4rem;
+    padding: 0.15rem 0.65rem;
+    font-size: 0.74rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.progress-chart__toggle:hover {
+    background: #1e2a44;
+    color: #D0DCF1;
+}
+
+/* ── Chart panel ───────────────────────────────────────── */
+
+.progress-chart {
+    margin-top: 0.7rem;
+    border-top: 1px solid #283a5a;
+    padding-top: 0.6rem;
+}
+
+.progress-chart__svg {
+    width: 100%;
+    height: auto;
+    display: block;
+    overflow: visible;
+}
+
+.progress-chart__empty {
+    font-size: 0.8rem;
+    color: #4a5a78;
+    font-style: italic;
+    margin-top: 0.65rem;
+    padding-top: 0.6rem;
+    border-top: 1px solid #283a5a;
+}
+
+/* ── SVG chart elements ────────────────────────────────── */
+
+.chart-grid {
+    stroke: #1e2a44;
+    stroke-width: 1;
+    fill: none;
+}
+
+.chart-grid--axis {
+    stroke: #283a5a;
+    stroke-width: 1.5;
+}
+
+.chart-area {
+    fill: rgba(106, 91, 194, 0.1);
+    stroke: none;
+}
+
+.chart-line {
+    fill: none;
+    stroke: #6A5BC2;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.chart-dot {
+    fill: #6A5BC2;
+    stroke: #192033;
+    stroke-width: 2;
+}
+
+.chart-label {
+    font-size: 9px;
+    fill: #4a5a78;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+/* ── Responsive: 2-column summary on narrow screens ───── */
+
+@media (max-width: 420px) {
+    .progress-summary {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+

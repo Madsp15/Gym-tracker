@@ -1,0 +1,582 @@
+﻿@page "/progress"
+@using System.Globalization
+@inject WorkoutService WorkoutService
+
+<PageTitle>Progress – Gym Tracker</PageTitle>
+
+<div class="page-header">
+    <h2 class="page-header__title">Progress</h2>
+</div>
+
+@if (!WorkoutService.IsInitialized)
+{
+    <p class="text-muted ps-3">Loading…</p>
+}
+else if (_workouts is null)
+{
+    <p class="text-muted ps-3">Loading…</p>
+}
+else if (_workouts.Count == 0)
+{
+    <div class="empty-state">
+        <p class="empty-state__icon">📈</p>
+        <p class="empty-state__text">No workouts logged yet. Log your first workout to start tracking progress!</p>
+        <a class="btn btn-accent" href="workouts/log">+ Log Workout</a>
+    </div>
+}
+else
+{
+    <div class="progress-summary">
+        <div class="progress-summary__tile">
+            <div class="progress-summary__value">@_workouts.Count</div>
+            <div class="progress-summary__label">Workouts</div>
+        </div>
+        <div class="progress-summary__tile">
+            <div class="progress-summary__value">@_stats.Count</div>
+            <div class="progress-summary__label">Exercises</div>
+        </div>
+        <div class="progress-summary__tile">
+            <div class="progress-summary__value">@TotalDaysActive</div>
+            <div class="progress-summary__label">Days tracked</div>
+        </div>
+        <div class="progress-summary__tile">
+            <div class="progress-summary__value">@WorkoutsThisWeek</div>
+            <div class="progress-summary__label">This week</div>
+        </div>
+    </div>
+
+    <div class="progress-sort">
+        <span class="progress-sort__label">Sort by:</span>
+        <button class="progress-sort__btn @(_sort == "recent" ? "progress-sort__btn--active" : "")" @onclick="SortByRecent">Recent</button>
+        <button class="progress-sort__btn @(_sort == "improved" ? "progress-sort__btn--active" : "")" @onclick="SortByImproved">Most improved</button>
+        <button class="progress-sort__btn @(_sort == "alpha" ? "progress-sort__btn--active" : "")" @onclick="SortByAlpha">A–Z</button>
+        <button class="progress-sort__btn @(_sort == "template" ? "progress-sort__btn--active" : "")" @onclick="SortByTemplate">Workouts</button>
+    </div>
+
+    <div class="progress-cards">
+        @foreach (var group in AllGroups)
+        {
+            @if (!string.IsNullOrEmpty(group.Name))
+            {
+                <div class="progress-group-header">
+                    <span class="progress-group-header__name">@group.Name</span>
+                    <span class="progress-group-header__count">@group.Stats.Count exercise@(group.Stats.Count == 1 ? "" : "s")</span>
+                </div>
+            }
+            @foreach (var s in group.Stats)
+            {
+            <div class="progress-card">
+                <div class="progress-card__header">
+                    <span class="progress-card__name">@s.Name</span>
+                    <span class="progress-card__type-badge @(s.Type == ExerciseType.Timed ? "progress-card__type-badge--timed" : "")">
+                        @(s.Type == ExerciseType.Timed ? "Timed" : "Reps")
+                    </span>
+                </div>
+
+                <div class="progress-card__meta-row">
+                    <span class="progress-card__meta">@DaysSinceText(s.LastDate)</span>
+                    <span class="progress-card__meta">
+                        @s.SessionCount session@(s.SessionCount == 1 ? "" : "s")
+                        @if (s.PoCount > 0)
+                        {
+                            <span class="progress-card__po-badge">🏆 ×@s.PoCount</span>
+                        }
+                    </span>
+                </div>
+
+                <div class="progress-card__date-range">
+                    First:&nbsp;@s.FirstDate.ToString("d MMM yyyy")&nbsp;&nbsp;·&nbsp;&nbsp;Latest:&nbsp;@s.LastDate.ToString("d MMM yyyy")
+                </div>
+
+                @if (s.Type == ExerciseType.RepsWeight && s.FirstBestWeight.HasValue)
+                {
+                    <div class="progress-card__metric">
+                        <div class="progress-card__metric-header">
+                            <span class="progress-card__metric-label">Best weight per session</span>
+                            <span class="progress-card__metric-delta @DeltaCssClass(s.WeightDelta)">
+                                @WeightDeltaText(s)
+                            </span>
+                        </div>
+                        <div class="progress-card__weight-values">
+                            <span>@FormatWeight(s.FirstBestWeight.Value)</span>
+                            <span class="progress-card__arrow">→</span>
+                            <span class="progress-card__weight-latest">@(s.LatestBestWeight.HasValue ? FormatWeight(s.LatestBestWeight.Value) : "–")</span>
+                        </div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" style="@BarStyle(s.BarWidthPct)"></div>
+                        </div>
+                        <div class="progress-card__bar-label">All-time best: @(s.AllTimeBestWeight.HasValue ? FormatWeight(s.AllTimeBestWeight.Value) : "–")</div>
+                    </div>
+                }
+                else if (s.Type == ExerciseType.Timed && s.FirstBestDuration.HasValue)
+                {
+                    <div class="progress-card__metric">
+                        <div class="progress-card__metric-header">
+                            <span class="progress-card__metric-label">Best duration per session</span>
+                            <span class="progress-card__metric-delta @DeltaCssClass(s.DurationDelta)">
+                                @DurationDeltaText(s)
+                            </span>
+                        </div>
+                        <div class="progress-card__weight-values">
+                            <span>@FormatDuration(s.FirstBestDuration.Value)</span>
+                            <span class="progress-card__arrow">→</span>
+                            <span class="progress-card__weight-latest">@(s.LatestBestDuration.HasValue ? FormatDuration(s.LatestBestDuration.Value) : "–")</span>
+                        </div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" style="@BarStyle(s.DurationBarWidthPct)"></div>
+                        </div>
+                        <div class="progress-card__bar-label">All-time best: @(s.AllTimeBestDuration.HasValue ? FormatDuration(s.AllTimeBestDuration.Value) : "–")</div>
+                    </div>
+                }
+                else
+                {
+                    <div class="progress-card__no-data">No weight or duration data recorded yet.</div>
+                }
+
+                <div class="progress-card__footer">
+                    @if (s.TotalSets > 0)
+                    {
+                        <span class="progress-card__volume">
+                            @s.TotalSets set@(s.TotalSets == 1 ? "" : "s") logged
+                            @if (s.TotalReps > 0)
+                            {
+                                <span> · @s.TotalReps rep@(s.TotalReps == 1 ? "" : "s") total</span>
+                            }
+                        </span>
+                    }
+                    <button class="progress-chart__toggle" @onclick="() => ToggleChart(s)">
+                        @(_expandedCharts.Contains(s.Name) ? "▲ Hide chart" : "▾ Chart")
+                    </button>
+                </div>
+
+                @if (_expandedCharts.Contains(s.Name))
+                {
+                    @if (ChartOf(s.Name).Points.Count >= 1)
+                    {
+                        <div class="progress-chart">
+                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg">
+                                <line x1="50" y1="10"  x2="550" y2="10"  class="chart-grid" />
+                                <line x1="50" y1="49"  x2="550" y2="49"  class="chart-grid" />
+                                <line x1="50" y1="87"  x2="550" y2="87"  class="chart-grid" />
+                                <line x1="50" y1="125" x2="550" y2="125" class="chart-grid chart-grid--axis" />
+                                <line x1="50" y1="10"  x2="50"  y2="125" class="chart-grid chart-grid--axis" />
+                                <text x="45" y="14"  class="chart-label" text-anchor="end">@ChartOf(s.Name).YMaxLabel</text>
+                                <text x="45" y="128" class="chart-label" text-anchor="end">0</text>
+                                <path d="@ChartOf(s.Name).AreaPath" class="chart-area" />
+                                <path d="@ChartOf(s.Name).LinePath" class="chart-line" />
+                                @foreach (var pt in ChartOf(s.Name).Points)
+                                {
+                                    <circle cx="@Fmt(pt.X)" cy="@Fmt(pt.Y)" r="3.5" class="chart-dot">
+                                        <title>@pt.DateLabel: @pt.ValueLabel</title>
+                                    </circle>
+                                }
+                                <text x="50"  y="150" class="chart-label" text-anchor="start">@ChartOf(s.Name).FirstDateLabel</text>
+                                <text x="550" y="150" class="chart-label" text-anchor="end">@ChartOf(s.Name).LastDateLabel</text>
+                            </svg>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="progress-chart__empty">Not enough data for a chart yet.</p>
+                    }
+                }
+            </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private List<LoggedWorkout>?          _workouts;
+    private List<WorkoutTemplate>?        _templates;
+    private List<ExerciseStat>            _stats          = new();
+    private string                        _sort           = "recent";
+    private HashSet<string>               _expandedCharts = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ChartData> _chartDataCache = new(StringComparer.OrdinalIgnoreCase);
+
+    // ── Global summary computed properties ───────────────────────────
+
+    private int TotalDaysActive
+    {
+        get
+        {
+            if (_workouts is null || _workouts.Count == 0) return 0;
+            var earliest = _workouts.Min(w => w.Date).Date;
+            return (int)(DateTime.Today - earliest).TotalDays + 1;
+        }
+    }
+
+    private int WorkoutsThisWeek
+    {
+        get
+        {
+            if (_workouts is null) return 0;
+            var today         = DateTime.Today;
+            var daysFromMonday = ((int)today.DayOfWeek + 6) % 7;
+            var monday        = today.AddDays(-daysFromMonday);
+            return _workouts.Count(w => w.Date.Date >= monday);
+        }
+    }
+
+    // ── Sort ─────────────────────────────────────────────────────────
+
+    private IEnumerable<ExerciseStat> SortedStats => _sort switch
+    {
+        "improved" => _stats.OrderByDescending(s => s.ImprovementPct),
+        "alpha"    => _stats.OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase),
+        _          => _stats.OrderByDescending(s => s.LastDate)
+    };
+
+    private void SortByRecent()   => _sort = "recent";
+    private void SortByImproved() => _sort = "improved";
+    private void SortByAlpha()    => _sort = "alpha";
+    private void SortByTemplate() => _sort = "template";
+
+    // ── Chart toggle ──────────────────────────────────────────────────
+
+    private void ToggleChart(ExerciseStat s)
+    {
+        if (!_expandedCharts.Remove(s.Name))
+        {
+            _expandedCharts.Add(s.Name);
+            _chartDataCache.TryAdd(s.Name, BuildChartData(s));
+        }
+    }
+
+    private ChartData ChartOf(string name) =>
+        _chartDataCache.TryGetValue(name, out var cd) ? cd : ChartData.Empty;
+
+    // ── Formatting helpers ───────────────────────────────────────────
+
+    private static string FormatWeight(double kg) =>
+        kg.ToString("0.##", CultureInfo.InvariantCulture) + " kg";
+
+    private static string FormatDuration(int seconds)
+    {
+        if (seconds <= 0) return "0s";
+        var mins = seconds / 60;
+        var secs = seconds % 60;
+        if (mins > 0 && secs > 0) return $"{mins}m {secs}s";
+        if (mins > 0)             return $"{mins}m";
+        return $"{secs}s";
+    }
+
+    private static string BarStyle(double pct) =>
+        $"width: {Math.Min(100d, pct).ToString("0.##", CultureInfo.InvariantCulture)}%";
+
+    private static string DeltaCssClass(double? delta) => delta switch
+    {
+        > 0 => "progress-card__metric-delta--up",
+        < 0 => "progress-card__metric-delta--down",
+        _   => "progress-card__metric-delta--same"
+    };
+
+    private static string DeltaCssClass(int? delta) => delta switch
+    {
+        > 0 => "progress-card__metric-delta--up",
+        < 0 => "progress-card__metric-delta--down",
+        _   => "progress-card__metric-delta--same"
+    };
+
+    private static string DaysSinceText(DateTime lastDate)
+    {
+        var days = (int)(DateTime.Today - lastDate.Date).TotalDays;
+        return days switch
+        {
+            0 => "Last performed: today",
+            1 => "Last performed: yesterday",
+            _ => $"Last performed: {days} days ago"
+        };
+    }
+
+    private static string WeightDeltaText(ExerciseStat s)
+    {
+        if (s.WeightDelta is null) return "–";
+        var d    = s.WeightDelta.Value;
+        var sign = d > 0 ? "+" : "";
+        var text = $"{sign}{d.ToString("0.##", CultureInfo.InvariantCulture)} kg";
+        if (s.WeightDeltaPct is not null)
+            text += $" ({(d > 0 ? "+" : "")}{s.WeightDeltaPct.Value.ToString("0.#", CultureInfo.InvariantCulture)}%)";
+        return text;
+    }
+
+    private static string DurationDeltaText(ExerciseStat s)
+    {
+        if (s.DurationDelta is null) return "–";
+        var d    = s.DurationDelta.Value;
+        var sign = d > 0 ? "+" : (d < 0 ? "-" : "");
+        var text = $"{sign}{FormatDuration(Math.Abs(d))}";
+        if (s.DurationDeltaPct is not null)
+            text += $" ({(d > 0 ? "+" : "")}{s.DurationDeltaPct.Value.ToString("0.#", CultureInfo.InvariantCulture)}%)";
+        return text;
+    }
+
+    private static string Fmt(double v) =>
+        v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    // ── Chart computation ─────────────────────────────────────────────
+
+    private const double CL = 50d, CR = 550d, CT = 10d, CB = 125d;
+    private const double CW = CR - CL, CH = CB - CT;
+
+    private sealed record SessionPoint(DateTime Date, double? Weight, int? Duration);
+    private sealed record ChartPoint(double X, double Y, string DateLabel, string ValueLabel);
+
+    private sealed record ChartData(
+        List<ChartPoint> Points,
+        string           LinePath,
+        string           AreaPath,
+        string           YMaxLabel,
+        string           FirstDateLabel,
+        string           LastDateLabel)
+    {
+        public static readonly ChartData Empty = new(new(), "", "", "", "", "");
+    }
+
+    private ChartData BuildChartData(ExerciseStat s)
+    {
+        var pts = BuildChartPoints(s);
+        if (pts.Count == 0) return ChartData.Empty;
+
+        var isWeight = s.Type == ExerciseType.RepsWeight;
+        var vals = s.SessionHistory
+            .Select(h => isWeight ? (h.Weight ?? 0) : (double)(h.Duration ?? 0))
+            .Where(v => v > 0).ToList();
+        if (vals.Count == 0) return ChartData.Empty;
+
+        var rawMax    = vals.Max();
+        var yMaxLabel = isWeight ? FormatWeight(rawMax) : FormatDuration((int)rawMax);
+        var firstDate = s.SessionHistory.First().Date.ToString("d MMM");
+        var lastDate  = s.SessionHistory.Last().Date.ToString("d MMM yyyy");
+
+        return new ChartData(pts, BuildLinePath(pts), BuildAreaPath(pts),
+            yMaxLabel, firstDate, lastDate);
+    }
+
+    private List<ChartPoint> BuildChartPoints(ExerciseStat s)
+    {
+        var history = s.SessionHistory;
+        if (history.Count == 0) return new();
+
+        var isWeight  = s.Type == ExerciseType.RepsWeight;
+        var dataPoints = history
+            .Select(h => (h.Date, Value: isWeight ? (h.Weight ?? 0) : (double)(h.Duration ?? 0)))
+            .Where(p => p.Value > 0)
+            .ToList();
+        if (dataPoints.Count == 0) return new();
+
+        var rawMax    = dataPoints.Max(p => p.Value);
+        var yMax      = rawMax * 1.1;
+        var minTicks  = dataPoints.Min(p => p.Date.Ticks);
+        var maxTicks  = dataPoints.Max(p => p.Date.Ticks);
+        var tickRange = maxTicks - minTicks;
+
+        return dataPoints.Select((p, i) =>
+        {
+            var x = tickRange > 0
+                ? CL + (double)(p.Date.Ticks - minTicks) / tickRange * CW
+                : (dataPoints.Count > 1 ? CL + (double)i / (dataPoints.Count - 1) * CW : CL + CW / 2);
+            var y      = CB - p.Value / yMax * CH;
+            var vLabel = isWeight ? FormatWeight(p.Value) : FormatDuration((int)p.Value);
+            return new ChartPoint(x, y, p.Date.ToString("d MMM yyyy"), vLabel);
+        }).ToList();
+    }
+
+    private static string BuildLinePath(IReadOnlyList<ChartPoint> pts)
+    {
+        if (pts.Count == 0) return "";
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"M {Fmt(pts[0].X)} {Fmt(pts[0].Y)}");
+        for (int i = 1; i < pts.Count; i++)
+            sb.Append($" L {Fmt(pts[i].X)} {Fmt(pts[i].Y)}");
+        return sb.ToString();
+    }
+
+    private static string BuildAreaPath(IReadOnlyList<ChartPoint> pts)
+    {
+        if (pts.Count == 0) return "";
+        var sb = new System.Text.StringBuilder();
+        sb.Append($"M {Fmt(pts[0].X)} {Fmt(CB)}");
+        sb.Append($" L {Fmt(pts[0].X)} {Fmt(pts[0].Y)}");
+        for (int i = 1; i < pts.Count; i++)
+            sb.Append($" L {Fmt(pts[i].X)} {Fmt(pts[i].Y)}");
+        sb.Append($" L {Fmt(pts[^1].X)} {Fmt(CB)} Z");
+        return sb.ToString();
+    }
+
+    // ── Data loading ─────────────────────────────────────────────────
+
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+        _workouts  = await WorkoutService.GetLoggedWorkoutsAsync();
+        _templates = await WorkoutService.GetTemplatesAsync();
+        BuildStats();
+    }
+
+    private void BuildStats()
+    {
+        if (_workouts is null) return;
+
+        // Group every LoggedExercise across all workouts by exercise name
+        var byName = new Dictionary<string, List<(DateTime Date, LoggedExercise Ex)>>(
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var workout in _workouts)
+        {
+            foreach (var ex in workout.Exercises)
+            {
+                if (string.IsNullOrWhiteSpace(ex.Name)) continue;
+                if (!byName.TryGetValue(ex.Name, out var list))
+                    byName[ex.Name] = list = new();
+                list.Add((workout.Date, ex));
+            }
+        }
+
+        _stats = byName.Select(kvp =>
+        {
+            var sessions = kvp.Value.OrderBy(x => x.Date).ToList();
+
+            // Best weight per session (RepsWeight exercises)
+            var weightSessions = sessions
+                .Select(s => s.Ex.Sets
+                    .Where(set => set.WeightKg.HasValue)
+                    .Select(set => set.WeightKg!.Value)
+                    .DefaultIfEmpty(0d).Max())
+                .Select((best, i) => (Index: i, Best: best))
+                .Where(x => x.Best > 0)
+                .ToList();
+
+            double? firstBestWeight    = weightSessions.Count > 0 ? weightSessions.First().Best       : null;
+            double? latestBestWeight   = weightSessions.Count > 0 ? weightSessions.Last().Best        : null;
+            double? allTimeBestWeight  = weightSessions.Count > 0 ? weightSessions.Max(x => x.Best)   : null;
+
+            // Best duration per session (Timed exercises)
+            var durationSessions = sessions
+                .Select(s => s.Ex.Sets
+                    .Where(set => set.DurationSeconds.HasValue)
+                    .Select(set => set.DurationSeconds!.Value)
+                    .DefaultIfEmpty(0).Max())
+                .Select((best, i) => (Index: i, Best: best))
+                .Where(x => x.Best > 0)
+                .ToList();
+
+            int? firstBestDuration    = durationSessions.Count > 0 ? durationSessions.First().Best      : null;
+            int? latestBestDuration   = durationSessions.Count > 0 ? durationSessions.Last().Best       : null;
+            int? allTimeBestDuration  = durationSessions.Count > 0 ? durationSessions.Max(x => x.Best)  : null;
+
+            return new ExerciseStat
+            {
+                Name                = kvp.Key,
+                Type                = sessions.First().Ex.Type,
+                SessionCount        = sessions.Count,
+                FirstDate           = sessions.First().Date,
+                LastDate            = sessions.Last().Date,
+                FirstBestWeight     = firstBestWeight,
+                LatestBestWeight    = latestBestWeight,
+                AllTimeBestWeight   = allTimeBestWeight,
+                FirstBestDuration   = firstBestDuration,
+                LatestBestDuration  = latestBestDuration,
+                AllTimeBestDuration = allTimeBestDuration,
+                TotalSets           = sessions.Sum(s => s.Ex.Sets.Count),
+                TotalReps           = sessions.Sum(s => s.Ex.Sets.Sum(set => set.Reps ?? 0)),
+                PoCount             = sessions.Count(s => s.Ex.ProgressiveOverload),
+                SessionHistory      = sessions.Select(s =>
+                {
+                    var w = s.Ex.Sets.Where(set => set.WeightKg.HasValue)
+                                     .Select(set => set.WeightKg!.Value)
+                                     .DefaultIfEmpty(0d).Max();
+                    var d = s.Ex.Sets.Where(set => set.DurationSeconds.HasValue)
+                                     .Select(set => set.DurationSeconds!.Value)
+                                     .DefaultIfEmpty(0).Max();
+                    return new SessionPoint(s.Date, w > 0 ? w : null, d > 0 ? d : null);
+                }).ToArray()
+            };
+        }).ToList();
+    }
+
+    // ── Per-exercise computed stats ───────────────────────────────────
+
+    private sealed class ExerciseStat
+    {
+        public string       Name                { get; init; } = "";
+        public ExerciseType Type                { get; init; }
+        public int          SessionCount        { get; init; }
+        public DateTime     FirstDate           { get; init; }
+        public DateTime     LastDate            { get; init; }
+        public double?      FirstBestWeight     { get; init; }
+        public double?      LatestBestWeight    { get; init; }
+        public double?      AllTimeBestWeight   { get; init; }
+        public int?         FirstBestDuration   { get; init; }
+        public int?         LatestBestDuration  { get; init; }
+        public int?         AllTimeBestDuration { get; init; }
+        public int          TotalSets           { get; init; }
+        public int          TotalReps           { get; init; }
+        public int          PoCount             { get; init; }
+        public IReadOnlyList<SessionPoint> SessionHistory { get; init; } = Array.Empty<SessionPoint>();
+
+        // Derived
+        public double? WeightDelta =>
+            LatestBestWeight.HasValue && FirstBestWeight.HasValue
+                ? LatestBestWeight.Value - FirstBestWeight.Value : null;
+
+        public double? WeightDeltaPct =>
+            WeightDelta.HasValue && FirstBestWeight is > 0
+                ? WeightDelta.Value / FirstBestWeight.Value * 100 : null;
+
+        public double BarWidthPct =>
+            AllTimeBestWeight is > 0 && LatestBestWeight.HasValue
+                ? Math.Min(100d, LatestBestWeight.Value / AllTimeBestWeight.Value * 100d) : 0d;
+
+        public int? DurationDelta =>
+            LatestBestDuration.HasValue && FirstBestDuration.HasValue
+                ? LatestBestDuration.Value - FirstBestDuration.Value : null;
+
+        public double? DurationDeltaPct =>
+            DurationDelta.HasValue && FirstBestDuration is > 0
+                ? (double)DurationDelta.Value / FirstBestDuration.Value * 100 : null;
+
+        public double DurationBarWidthPct =>
+            AllTimeBestDuration is > 0 && LatestBestDuration.HasValue
+                ? Math.Min(100d, (double)LatestBestDuration.Value / AllTimeBestDuration.Value * 100d) : 0d;
+
+        /// <summary>Used for "most improved" sort order.</summary>
+        public double ImprovementPct => WeightDeltaPct ?? DurationDeltaPct ?? 0;
+    }
+
+    // ── Template grouping ─────────────────────────────────────────────
+
+    private sealed record StatGroup(string Name, List<ExerciseStat> Stats);
+
+    private IEnumerable<StatGroup> AllGroups => _sort == "template"
+        ? TemplateGroups
+        : new[] { new StatGroup("", SortedStats.ToList()) };
+
+    private IEnumerable<StatGroup> TemplateGroups
+    {
+        get
+        {
+            var groups = new Dictionary<string, List<ExerciseStat>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in _stats)
+            {
+                var tName = PrimaryTemplateName(s.Name);
+                if (!groups.TryGetValue(tName, out var list))
+                    groups[tName] = list = new();
+                list.Add(s);
+            }
+            return groups
+                .OrderBy(kvp => kvp.Key == "No template" ? 1 : 0)
+                .ThenBy(kvp => kvp.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kvp => new StatGroup(kvp.Key, kvp.Value.OrderBy(s => s.Name).ToList()));
+        }
+    }
+
+    private string PrimaryTemplateName(string exerciseName)
+    {
+        if (_templates is null || _templates.Count == 0) return "No template";
+        var template = _templates.FirstOrDefault(t =>
+            t.Exercises.Any(e => string.Equals(e.Name, exerciseName, StringComparison.OrdinalIgnoreCase)));
+        return template?.Name ?? "No template";
+    }
+}
+

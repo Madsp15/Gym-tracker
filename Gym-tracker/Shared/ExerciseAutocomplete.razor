@@ -1,0 +1,109 @@
+﻿@inject WgerService WgerService
+
+<div class="ex-ac">
+    <input class="form-control form-control-sm @CssClass"
+           placeholder="@Placeholder"
+           value="@Value"
+           @oninput="OnInputAsync"
+           @onfocus="OnFocus"
+           @onblur="OnBlurAsync"
+           @onkeydown="OnKeyDownAsync"
+           autocomplete="off" />
+
+    @if (_showDropdown && _suggestions.Count > 0)
+    {
+        <div class="ex-ac__dropdown">
+            @for (int i = 0; i < _suggestions.Count; i++)
+            {
+                var idx = i;
+                var item = _suggestions[idx];
+                <button type="button"
+                        class="ex-ac__item @(idx == _activeIndex ? "ex-ac__item--active" : "")"
+                        @onmousedown="() => SelectAsync(item)">
+                    <span class="ex-ac__item-name">@item.Name</span>
+                    @if (!string.IsNullOrWhiteSpace(item.Category))
+                    {
+                        <span class="ex-ac__item-cat">@item.Category</span>
+                    }
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    /// <summary>Fires only when the user picks from the dropdown, carrying name + category.</summary>
+    [Parameter] public EventCallback<WgerExerciseInfo> OnExerciseSelected { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Exercise name";
+    [Parameter] public string CssClass { get; set; } = string.Empty;
+
+    private List<WgerExerciseInfo> _suggestions = new();
+    private bool _showDropdown;
+    private int _activeIndex = -1;
+    private CancellationTokenSource? _debounce;
+
+    private async Task OnInputAsync(ChangeEventArgs e)
+    {
+        var text = e.Value?.ToString() ?? string.Empty;
+        await ValueChanged.InvokeAsync(text);
+        _activeIndex = -1;
+
+        _debounce?.Cancel();
+        _debounce = new CancellationTokenSource();
+        var token = _debounce.Token;
+
+        if (text.Length < 2)
+        {
+            _suggestions.Clear();
+            _showDropdown = false;
+            return;
+        }
+
+        try
+        {
+            await Task.Delay(350, token);
+            _suggestions = await WgerService.SearchExercisesAsync(text);
+            _showDropdown = _suggestions.Count > 0;
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private void OnFocus()
+    {
+        if (_suggestions.Count > 0) _showDropdown = true;
+    }
+
+    private async Task OnBlurAsync()
+    {
+        await Task.Delay(200);
+        _showDropdown = false;
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (!_showDropdown || _suggestions.Count == 0) return;
+
+        if (e.Key == "ArrowDown")
+            _activeIndex = Math.Min(_activeIndex + 1, _suggestions.Count - 1);
+        else if (e.Key == "ArrowUp")
+            _activeIndex = Math.Max(_activeIndex - 1, 0);
+        else if (e.Key == "Escape")
+        {
+            _showDropdown = false;
+            _activeIndex = -1;
+        }
+        else if (e.Key == "Enter" && _activeIndex >= 0)
+            await SelectAsync(_suggestions[_activeIndex]);
+    }
+
+    private async Task SelectAsync(WgerExerciseInfo item)
+    {
+        await ValueChanged.InvokeAsync(item.Name);
+        await OnExerciseSelected.InvokeAsync(item);
+        _suggestions.Clear();
+        _showDropdown = false;
+        _activeIndex = -1;
+    }
+}

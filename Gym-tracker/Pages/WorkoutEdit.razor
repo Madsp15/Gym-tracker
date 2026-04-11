@@ -1,13 +1,19 @@
-@page "/workouts/new"
-@page "/workouts/{Id:guid}"
+@* Deprecated: This page is kept for backwards compatibility only.
+   Use Templates.razor for template management and LogWorkout.razor for logging workouts. *@
+@page "/workouts-legacy/new"
+@page "/workouts-legacy/{Id:guid}"
 @inject WorkoutService WorkoutService
 @inject NavigationManager Nav
 
-<PageTitle>@(_isNew ? "New Workout" : "Edit Workout") – Gym Tracker</PageTitle>
+<PageTitle>@(_isNew ? "New Workout (Legacy)" : "Edit Workout (Legacy)") – Gym Tracker</PageTitle>
+
+<div class="alert alert-warning" role="alert">
+    <strong>⚠️ Legacy Page</strong> — This interface is deprecated. Please use <a href="/templates">Templates</a> to manage workout templates.
+</div>
 
 <div class="page-header">
     <button class="btn btn-sm btn-ghost" @onclick="Cancel">← Back</button>
-    <h2 class="page-header__title">@(_isNew ? "New Workout" : "Edit Workout")</h2>
+    <h2 class="page-header__title">@(_isNew ? "New Workout (Legacy)" : "Edit Workout (Legacy)")</h2>
 </div>
 
 <div class="workout-form">
@@ -109,7 +115,7 @@
         {
             <span class="workout-form__error">@_error</span>
         }
-        <button class="btn btn-accent btn-lg w-100" @onclick="Save">💾 Save Workout</button>
+        <button class="btn btn-accent btn-lg w-100" @onclick="Save">💾 Save Workout (Legacy)</button>
     </div>
 </div>
 
@@ -120,6 +126,7 @@
     private bool _isNew = true;
     private string? _error;
 
+#pragma warning disable CS0618
     protected override async Task OnInitializedAsync()
     {
         if (Id.HasValue)
@@ -134,22 +141,6 @@
         }
     }
 
-    private void AddExercise() => _workout.Exercises.Add(new Exercise());
-    private void RemoveExercise(int idx) => _workout.Exercises.RemoveAt(idx);
-
-    private void SetType(Exercise ex, ExerciseType type)
-    {
-        ex.Type = type;
-        // Clear irrelevant fields
-        if (type == ExerciseType.RepsWeight)
-            ex.DurationSeconds = null;
-        else
-        {
-            ex.Reps = null;
-            ex.WeightKg = null;
-        }
-    }
-
     private async Task Save()
     {
         _error = null;
@@ -161,6 +152,23 @@
         await WorkoutService.SaveAsync(_workout);
         Nav.NavigateTo("/workouts");
     }
+#pragma warning restore CS0618
+
+    private void AddExercise() => _workout.Exercises.Add(new Exercise());
+    private void RemoveExercise(int idx) => _workout.Exercises.RemoveAt(idx);
+
+    private void SetType(Exercise ex, ExerciseType type)
+    {
+        ex.Type = type;
+        if (type == ExerciseType.RepsWeight)
+            ex.DurationSeconds = null;
+        else
+        {
+            ex.Reps = null;
+            ex.WeightKg = null;
+        }
+    }
+
 
     private void Cancel() => Nav.NavigateTo("/workouts");
 

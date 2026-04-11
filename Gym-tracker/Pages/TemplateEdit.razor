@@ -1,0 +1,366 @@
+﻿@page "/templates/new"
+@page "/templates/{Id:guid}"
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "New Template" : "Edit Template") – Gym Tracker</PageTitle>
+
+<div class="page-header">
+    <button class="btn btn-sm btn-ghost" @onclick="Cancel">← Back</button>
+    <h2 class="page-header__title">@(_isNew ? "New Template" : "Edit Template")</h2>
+</div>
+
+<div class="workout-form">
+    <!-- Template name -->
+    <div class="mb-3">
+        <label class="form-label workout-form__label" for="templateName">Template Name</label>
+        <input id="templateName"
+               class="form-control workout-form__input"
+               placeholder="e.g. Upper Body Monday"
+               @bind="_template.Name" />
+    </div>
+
+    <!-- Exercise list -->
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="workout-form__section-title mb-0">Exercises</h5>
+        <div class="d-flex gap-2 align-items-center">
+            @if (_template.Exercises.Count > 1)
+            {
+                <button class="btn btn-sm btn-ghost" @onclick="CollapseAll">Collapse all</button>
+            }
+            <button class="btn btn-sm btn-accent" @onclick="AddExercise">+ Add Exercise</button>
+        </div>
+    </div>
+
+    @if (_template.Exercises.Count == 0)
+    {
+        <p class="text-muted small ps-1 mb-3">No exercises yet — add one above.</p>
+    }
+
+    @for (var i = 0; i < _template.Exercises.Count; i++)
+    {
+        var idx = i;
+        var ex = _template.Exercises[idx];
+
+        <div class="@ExerciseRowClass(idx, ex)"
+             @ondragover:preventDefault="true"
+             @ondragover="() => DragOver(idx)"
+             @ondrop="() => Drop(idx)">
+
+            <div class="exercise-row__header">
+                <span class="exercise-row__drag-handle"
+                      draggable="true"
+                      @ondragstart="() => DragStart(idx)"
+                      @ondragend="DragEnd"
+                      title="Drag to reorder">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="16" viewBox="0 0 12 16" fill="currentColor" aria-hidden="true">
+                        <circle cx="3" cy="3"  r="1.5"/><circle cx="9" cy="3"  r="1.5"/>
+                        <circle cx="3" cy="8"  r="1.5"/><circle cx="9" cy="8"  r="1.5"/>
+                        <circle cx="3" cy="13" r="1.5"/><circle cx="9" cy="13" r="1.5"/>
+                    </svg>
+                </span>
+                <span class="exercise-row__num">@(idx + 1)</span>
+                <ExerciseAutocomplete CssClass="exercise-row__name"
+                                      Placeholder="Exercise name"
+                                      @bind-Value="ex.Name"
+                                      OnExerciseSelected="info => ApplyWgerInfo(ex, info)" />
+                @if (IsCollapsed(ex))
+                {
+                    @if (!string.IsNullOrEmpty(ex.MuscleGroup))
+                    {
+                        <span class="exercise-row__summary-tag">@ex.MuscleGroup</span>
+                    }
+                    <span class="exercise-row__summary-tag exercise-row__summary-tag--type">
+                        @(ex.Type == ExerciseType.Timed ? "Timed" : "Reps")
+                    </span>
+                }
+                <button class="btn btn-sm btn-ghost exercise-row__chevron"
+                        @onclick="() => ToggleCollapse(ex)">
+                    @(IsCollapsed(ex) ? "▸" : "▾")
+                </button>
+                <button class="btn btn-sm btn-ghost exercise-row__remove"
+                        title="Remove"
+                        @onclick="() => RemoveExercise(idx)">✕</button>
+            </div>
+
+            @if (!IsCollapsed(ex))
+            {
+                <!-- Type toggle -->
+                <div class="exercise-row__type-toggle">
+                    <button class="type-btn @(ex.Type == ExerciseType.RepsWeight ? "type-btn--active" : "")"
+                            @onclick="() => SetType(ex, ExerciseType.RepsWeight)">
+                        Reps + Weight
+                    </button>
+                    <button class="type-btn @(ex.Type == ExerciseType.Timed ? "type-btn--active" : "")"
+                            @onclick="() => SetType(ex, ExerciseType.Timed)">
+                        Timed
+                    </button>
+                </div>
+
+                <!-- Muscle group -->
+                <div class="muscle-section">
+                    <div class="muscle-pills">
+                        @foreach (var group in MuscleGroups)
+                        {
+                            var g = group;
+                            <button type="button"
+                                    class="muscle-pill @(ex.MuscleGroup == g ? "muscle-pill--active" : "")"
+                                    @onclick="() => ToggleExMuscleGroup(ex, g)">@g</button>
+                        }
+                    </div>
+                    <MuscleBodyDiagram MuscleGroup="@ex.MuscleGroup"
+                                       MuscleGroupChanged="mg => SetExMuscleGroup(ex, mg)" />
+                </div>
+
+                <!-- Default values -->
+                <div class="exercise-defaults">
+                    <div class="exercise-defaults__field">
+                        <label class="exercise-defaults__label">Sets</label>
+                        <input type="number" min="1" max="20"
+                               class="form-control form-control-sm exercise-defaults__input"
+                               value="@ex.Sets"
+                               @onchange="e => ex.Sets = ParseInt(e.Value) ?? 3" />
+                    </div>
+
+                    @if (ex.Type == ExerciseType.RepsWeight)
+                    {
+                        <div class="exercise-defaults__field">
+                            <label class="exercise-defaults__label">Reps</label>
+                            <input type="number" min="1"
+                                   class="form-control form-control-sm exercise-defaults__input"
+                                   value="@ex.Reps"
+                                   @onchange="e => ex.Reps = ParseInt(e.Value)" />
+                        </div>
+                        <div class="exercise-defaults__field exercise-defaults__field--grow">
+                            <label class="exercise-defaults__label">Weight</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0" step="0.5"
+                                       class="form-control exercise-defaults__input"
+                                       placeholder="0"
+                                       @bind="ex.WeightKg"
+                                       @bind:culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                                <span class="input-group-text exercise-defaults__unit">kg</span>
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="exercise-defaults__field exercise-defaults__field--grow">
+                            <label class="exercise-defaults__label">Duration</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="1"
+                                       class="form-control exercise-defaults__input"
+                                       placeholder="0"
+                                       @bind="ex.DurationSeconds" />
+                                <span class="input-group-text exercise-defaults__unit">s</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                @if (ex.LastPerformed.HasValue)
+                {
+                    <div class="last-time">
+                        <span class="last-time__date">Last: @ex.LastPerformed.Value.ToString("dd MMM yyyy")</span>
+                        @if (ex.LastSets.Count > 0) { <span class="last-time__sets">@FormatLastSets(ex)</span> }
+                        @if (ex.LastProgressiveOverload) { <span class="last-time__badge" title="Progressive overload">PO</span> }
+                        @if (!string.IsNullOrWhiteSpace(ex.LastNotes)) { <span class="last-time__note">"@ex.LastNotes"</span> }
+                    </div>
+                }
+
+                <div class="exercise-row__collapse-bar">
+                    <button class="exercise-row__collapse-btn" @onclick="() => ToggleCollapse(ex)">
+                        ▾ Collapse
+                    </button>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- Save -->
+    <div class="workout-form__footer">
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <span class="workout-form__error">@_error</span>
+        }
+        <button class="btn btn-accent btn-lg w-100" @onclick="Save">Save Template</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private WorkoutTemplate _template = new();
+    private bool            _isNew    = true;
+    private string?         _error;
+
+    // ── Collapse state ───────────────────────────────────────────────
+    private HashSet<Exercise> _collapsedExercises = new();
+
+    private bool IsCollapsed(Exercise ex) => _collapsedExercises.Contains(ex);
+
+    private void ToggleCollapse(Exercise ex)
+    {
+        if (!_collapsedExercises.Remove(ex))
+            _collapsedExercises.Add(ex);
+    }
+
+    private void CollapseAll()
+    {
+        foreach (var ex in _template.Exercises)
+            _collapsedExercises.Add(ex);
+    }
+
+    private void ExpandAll() => _collapsedExercises.Clear();
+
+    // ── Drag-to-reorder state ────────────────────────────────────────
+    private int _dragFromIndex = -1;
+    private int _dragToIndex   = -1;
+
+    private string ExerciseRowClass(int idx, Exercise ex)
+    {
+        var parts = new System.Text.StringBuilder("exercise-row");
+        if (ex.Type == ExerciseType.Timed)                              parts.Append(" exercise-row--timed");
+        if (IsCollapsed(ex))                                            parts.Append(" exercise-row--collapsed");
+        if (_dragFromIndex == idx)                                      parts.Append(" exercise-row--dragging");
+        if (_dragToIndex == idx && _dragFromIndex != idx)               parts.Append(" exercise-row--drag-over");
+        return parts.ToString();
+    }
+
+    private void DragStart(int idx) => _dragFromIndex = idx;
+
+    private void DragOver(int idx)
+    {
+        if (_dragToIndex == idx) return;
+        _dragToIndex = idx;
+    }
+
+    private void DragEnd()
+    {
+        _dragFromIndex = -1;
+        _dragToIndex   = -1;
+    }
+
+    private void Drop(int idx)
+    {
+        if (_dragFromIndex < 0 || _dragFromIndex == idx)
+        {
+            _dragToIndex = -1;
+            return;
+        }
+        var item = _template.Exercises[_dragFromIndex];
+        _template.Exercises.RemoveAt(_dragFromIndex);
+        _template.Exercises.Insert(idx, item);
+        _dragFromIndex = -1;
+        _dragToIndex   = -1;
+    }
+
+    private async Task Save()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_template.Name))
+        {
+            _error = "Please enter a template name.";
+            return;
+        }
+        await WorkoutService.SaveTemplateAsync(_template);
+        Nav.NavigateTo("/templates");
+    }
+
+    private void Cancel() => Nav.NavigateTo("/templates");
+
+    private static string FormatLastSets(Exercise ex)
+    {
+        if (ex.LastSets.Count == 0) return "";
+        var n = ex.LastSets.Count;
+        var first = ex.LastSets[0];
+        if (ex.Type == ExerciseType.RepsWeight)
+        {
+            var reps = first.Reps?.ToString() ?? "?";
+            var wt = first.WeightKg.HasValue
+                ? $" @ {first.WeightKg.Value.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)} kg"
+                : "";
+            return $"{n} × {reps} reps{wt}";
+        }
+        return $"{n} × {first.DurationSeconds?.ToString() ?? "?"} s";
+    }
+
+    private static int? ParseInt(object? value) =>
+        int.TryParse(value?.ToString(), out var v) ? v : null;
+
+    private static double? ParseDouble(object? value) =>
+        double.TryParse(value?.ToString(), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+
+    // ── Muscle group helpers ─────────────────────────────────────────────────
+
+    private static readonly string[] MuscleGroups =
+        ["Chest", "Back", "Lower Back", "Traps", "Shoulders", "Biceps", "Triceps", "Forearms", "Core", "Quads", "Hamstrings", "Glutes", "Calves"];
+
+    private void ToggleExMuscleGroup(Exercise ex, string group)
+    {
+        ex.MuscleGroup = ex.MuscleGroup == group ? null : group;
+    }
+
+    private void SetExMuscleGroup(Exercise ex, string mg)
+    {
+        ex.MuscleGroup = string.IsNullOrEmpty(mg) ? null : mg;
+    }
+
+    // ── wger category → muscle group mapping ────────────────────────────────
+    // (normalisation now done in WgerService; ApplyWgerInfo matches against MuscleGroups)
+
+    private void ApplyWgerInfo(Exercise ex, WgerExerciseInfo info)
+    {
+        // WgerService already normalises category to canonical English names
+        var match = MuscleGroups.FirstOrDefault(g =>
+            string.Equals(g, info.Category, StringComparison.OrdinalIgnoreCase));
+        if (match is not null)
+            ex.MuscleGroup = match;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id.HasValue)
+        {
+            var templates = await WorkoutService.GetTemplatesAsync();
+            var existing = templates.FirstOrDefault(t => t.Id == Id.Value);
+            if (existing is not null)
+            {
+                _template = existing;
+                _isNew = false;
+            }
+        }
+    }
+
+    private void AddExercise()
+    {
+        // Collapse all existing cards so the new one stands out
+        foreach (var ex in _template.Exercises)
+            _collapsedExercises.Add(ex);
+        _template.Exercises.Add(new Exercise
+        {
+            Type = ExerciseType.RepsWeight,
+            Sets = 3,
+            Reps = 12
+        });
+    }
+
+    private void RemoveExercise(int idx)
+    {
+        _collapsedExercises.Remove(_template.Exercises[idx]);
+        _template.Exercises.RemoveAt(idx);
+    }
+
+    private void SetType(Exercise ex, ExerciseType type)
+    {
+        ex.Type = type;
+        if (type == ExerciseType.RepsWeight)
+            ex.DurationSeconds = null;
+        else
+        {
+            ex.Reps = null;
+            ex.WeightKg = null;
+        }
+    }
+}

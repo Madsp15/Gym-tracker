@@ -1,0 +1,515 @@
+﻿@page "/workouts/log"
+@page "/workouts/log/{TemplateId:guid}"
+@page "/workouts/{Id:guid}"
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+
+<PageTitle>@(_isNew ? "Log Workout" : "Edit Logged Workout") – Gym Tracker</PageTitle>
+
+@if (_step == LogStep.PickTemplate)
+{
+    <div class="page-header">
+        <button class="btn btn-sm btn-ghost" @onclick="Cancel">← Back</button>
+        <h2 class="page-header__title">Log Workout</h2>
+    </div>
+
+    <div class="template-picker">
+        @if (_defaultDate.Date != DateTime.Today)
+        {
+            <div class="log-date-badge">Logging for @_defaultDate.ToString("dd MMM yyyy")</div>
+        }
+        <p class="template-picker__hint">Pick a template to pre-fill your exercises, or start fresh.</p>
+        <div class="template-picker__grid">
+            @foreach (var t in _templates)
+            {
+                var tmpl = t;
+                <button class="template-picker__card" @onclick="() => SelectTemplate(tmpl)">
+                    <span class="template-picker__card-name">@tmpl.Name</span>
+                    <span class="template-picker__card-meta">@tmpl.Exercises.Count exercise@(tmpl.Exercises.Count == 1 ? "" : "s")</span>
+                </button>
+            }
+            <button class="template-picker__card template-picker__card--blank" @onclick="StartBlank">
+                <span class="template-picker__card-name">Blank Workout</span>
+                <span class="template-picker__card-meta">Start from scratch</span>
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="page-header">
+        <button class="btn btn-sm btn-ghost" @onclick="GoBack">← Back</button>
+        <h2 class="page-header__title">@(_isNew ? "Log Workout" : "Edit Logged Workout")</h2>
+    </div>
+
+    <div class="workout-form">
+        <div class="mb-3">
+            <label class="form-label workout-form__label" for="workoutName">Workout Name</label>
+            <input id="workoutName" class="form-control workout-form__input"
+                   placeholder="e.g. Upper Body Monday" @bind="_workout.Name" />
+        </div>
+        <div class="mb-4">
+            <label class="form-label workout-form__label" for="workoutDate">Date</label>
+            <input id="workoutDate" type="date" class="form-control workout-form__input"
+                   @bind="_workout.Date" />
+        </div>
+
+        <!-- Exercise list header -->
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h5 class="workout-form__section-title mb-0">Exercises</h5>
+            <div class="d-flex gap-2 align-items-center">
+                @if (_workout.Exercises.Count > 1)
+                {
+                    <div class="view-toggle">
+                        <button class="@ViewBtnClass(false)" @onclick="() => SetViewMode(false)">All</button>
+                        <button class="@ViewBtnClass(true)" @onclick="() => SetViewMode(true)">One at a time</button>
+                    </div>
+                }
+                <button class="btn btn-sm btn-accent" @onclick="AddExercise">+ Add</button>
+            </div>
+        </div>
+
+        @if (_workout.Exercises.Count == 0)
+        {
+            <p class="text-muted small ps-1 mb-3">No exercises yet — add one above.</p>
+        }
+        else if (_stepThrough)
+        {
+            <div class="exercise-stepper__bar">
+                @for (var pip = 0; pip < _workout.Exercises.Count; pip++)
+                {
+                    var p = pip;
+                    <button class="@PipClass(p)" title="@_workout.Exercises[p].Name"
+                            @onclick="() => GoToExercise(p)"></button>
+                }
+            </div>
+            <p class="exercise-stepper__label">
+                Exercise @(_currentExerciseIndex + 1) of @_workout.Exercises.Count
+                @if (!string.IsNullOrWhiteSpace(StepExercise.Name))
+                {
+                    <span> – @StepExercise.Name</span>
+                }
+            </p>
+
+            <div class="exercise-row @(StepExercise.Type == ExerciseType.Timed ? "exercise-row--timed" : "")">
+                <div class="exercise-row__header">
+                    <span class="exercise-row__num">@(_currentExerciseIndex + 1)</span>
+                     <ExerciseAutocomplete CssClass="exercise-row__name"
+                                           Placeholder="Exercise name"
+                                           @bind-Value="StepExercise.Name" />
+                    <button class="btn btn-sm btn-ghost exercise-row__remove" title="Remove"
+                            @onclick="() => RemoveExercise(_currentExerciseIndex)">✕</button>
+                </div>
+                <div class="exercise-row__type-toggle">
+                    <button class="type-btn @(StepExercise.Type == ExerciseType.RepsWeight ? "type-btn--active" : "")"
+                            @onclick="() => SetType(StepExercise, ExerciseType.RepsWeight)">Reps + Weight</button>
+                    <button class="type-btn @(StepExercise.Type == ExerciseType.Timed ? "type-btn--active" : "")"
+                            @onclick="() => SetType(StepExercise, ExerciseType.Timed)">Timed</button>
+                </div>
+
+                @if (GetTemplateEx(StepExercise.Name) is { LastPerformed: not null } stepHint)
+                {
+                    <div class="last-time">
+                        <span class="last-time__date">Last: @stepHint.LastPerformed!.Value.ToString("dd MMM")</span>
+                        <span class="last-time__sets">@FormatLastSets(stepHint)</span>
+                        @if (stepHint.LastProgressiveOverload) { <span class="last-time__badge" title="Progressive overload last time">PO</span> }
+                        @if (!string.IsNullOrWhiteSpace(stepHint.LastNotes)) { <span class="last-time__note">"@stepHint.LastNotes"</span> }
+                    </div>
+                }
+
+                <div class="sets-section">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small text-muted">@StepExercise.Sets.Count set@(StepExercise.Sets.Count == 1 ? "" : "s")</span>
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddSet(StepExercise)">+ Set</button>
+                    </div>
+                    @for (var setIdx = 0; setIdx < StepExercise.Sets.Count; setIdx++)
+                    {
+                        var sIdx = setIdx;
+                        var set = StepExercise.Sets[sIdx];
+                        <div class="set-row">
+                            <span class="set-row__num">Set @(sIdx + 1)</span>
+                            @if (StepExercise.Type == ExerciseType.RepsWeight)
+                            {
+                                <div class="set-row__fields">
+                                    <input type="number" min="1" class="form-control form-control-sm set-row__input"
+                                           placeholder="Reps" value="@set.Reps"
+                                           @onchange="e => set.Reps = ParseInt(e.Value)" />
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" min="0" step="0.5" class="form-control set-row__input"
+                                               placeholder="Weight"
+                                               @bind="set.WeightKg"
+                                               @bind:culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                                        <span class="input-group-text set-row__unit">kg</span>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="set-row__fields">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" min="1" class="form-control set-row__input"
+                                               placeholder="Duration" value="@set.DurationSeconds"
+                                               @onchange="e => set.DurationSeconds = ParseInt(e.Value)" />
+                                        <span class="input-group-text set-row__unit">s</span>
+                                    </div>
+                                </div>
+                            }
+                            <button class="btn btn-sm btn-ghost" @onclick="() => RemoveSet(StepExercise, sIdx)">✕</button>
+                        </div>
+                    }
+                </div>
+
+                <div class="exercise-footer">
+                    <button class="po-toggle @(StepExercise.ProgressiveOverload ? "po-toggle--active" : "")"
+                            @onclick="() => StepExercise.ProgressiveOverload = !StepExercise.ProgressiveOverload">
+                        Progressive overload
+                    </button>
+                    <textarea class="form-control exercise-notes" rows="2"
+                              placeholder="Notes (optional)"
+                              @bind="StepExercise.Notes"></textarea>
+                </div>
+            </div>
+
+            <div class="exercise-stepper__nav">
+                <button class="btn btn-ghost" @onclick="PrevExercise" disabled="@(_currentExerciseIndex == 0)">← Prev</button>
+                <button class="btn btn-ghost" @onclick="NextExercise" disabled="@(_currentExerciseIndex >= _workout.Exercises.Count - 1)">Next →</button>
+            </div>
+        }
+        else
+        {
+            @for (var i = 0; i < _workout.Exercises.Count; i++)
+            {
+                var idx = i;
+                var ex = _workout.Exercises[idx];
+
+                <div class="exercise-row @(ex.Type == ExerciseType.Timed ? "exercise-row--timed" : "")">
+                    <div class="exercise-row__header">
+                        <span class="exercise-row__num">@(idx + 1)</span>
+                        <ExerciseAutocomplete CssClass="exercise-row__name"
+                                              Placeholder="Exercise name"
+                                              @bind-Value="ex.Name" />
+                        <button class="btn btn-sm btn-ghost exercise-row__remove" title="Remove"
+                                @onclick="() => RemoveExercise(idx)">✕</button>
+                    </div>
+                    <div class="exercise-row__type-toggle">
+                        <button class="type-btn @(ex.Type == ExerciseType.RepsWeight ? "type-btn--active" : "")"
+                                @onclick="() => SetType(ex, ExerciseType.RepsWeight)">Reps + Weight</button>
+                        <button class="type-btn @(ex.Type == ExerciseType.Timed ? "type-btn--active" : "")"
+                                @onclick="() => SetType(ex, ExerciseType.Timed)">Timed</button>
+                    </div>
+
+                    @if (GetTemplateEx(ex.Name) is { LastPerformed: not null } hint)
+                    {
+                        <div class="last-time">
+                            <span class="last-time__date">Last: @hint.LastPerformed!.Value.ToString("dd MMM")</span>
+                            <span class="last-time__sets">@FormatLastSets(hint)</span>
+                            @if (hint.LastProgressiveOverload) { <span class="last-time__badge" title="Progressive overload last time">PO</span> }
+                            @if (!string.IsNullOrWhiteSpace(hint.LastNotes)) { <span class="last-time__note">"@hint.LastNotes"</span> }
+                        </div>
+                    }
+
+                    <div class="sets-section">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="small text-muted">@ex.Sets.Count set@(ex.Sets.Count == 1 ? "" : "s")</span>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => AddSet(ex)">+ Set</button>
+                        </div>
+                        @for (var setIdx = 0; setIdx < ex.Sets.Count; setIdx++)
+                        {
+                            var sIdx = setIdx;
+                            var set = ex.Sets[sIdx];
+                            <div class="set-row">
+                                <span class="set-row__num">Set @(sIdx + 1)</span>
+                                @if (ex.Type == ExerciseType.RepsWeight)
+                                {
+                                    <div class="set-row__fields">
+                                        <input type="number" min="1" class="form-control form-control-sm set-row__input"
+                                               placeholder="Reps" value="@set.Reps"
+                                               @onchange="e => set.Reps = ParseInt(e.Value)" />
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" min="0" step="0.5" class="form-control set-row__input"
+                                                   placeholder="Weight"
+                                                   @bind="set.WeightKg"
+                                                   @bind:culture="@System.Globalization.CultureInfo.InvariantCulture" />
+                                            <span class="input-group-text set-row__unit">kg</span>
+                                        </div>
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="set-row__fields">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" min="1" class="form-control set-row__input"
+                                                   placeholder="Duration" value="@set.DurationSeconds"
+                                                   @onchange="e => set.DurationSeconds = ParseInt(e.Value)" />
+                                            <span class="input-group-text set-row__unit">s</span>
+                                        </div>
+                                    </div>
+                                }
+                                <button class="btn btn-sm btn-ghost" @onclick="() => RemoveSet(ex, sIdx)">✕</button>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="exercise-footer">
+                        <button class="po-toggle @(ex.ProgressiveOverload ? "po-toggle--active" : "")"
+                                @onclick="() => ex.ProgressiveOverload = !ex.ProgressiveOverload">
+                            Progressive overload
+                        </button>
+                        <textarea class="form-control exercise-notes" rows="2"
+                                  placeholder="Notes (optional)"
+                                  @bind="ex.Notes"></textarea>
+                    </div>
+                </div>
+            }
+        }
+
+        <div class="workout-form__footer">
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <span class="workout-form__error">@_error</span>
+            }
+            <button class="btn btn-accent btn-lg w-100" @onclick="Save">Save Logged Workout</button>
+        </div>
+    </div>
+}
+
+@code {
+    private enum LogStep { PickTemplate, Logging }
+
+    [Parameter] public Guid? Id { get; set; }
+    [Parameter] public Guid? TemplateId { get; set; }
+    [SupplyParameterFromQuery(Name = "date")] public string? DateParam { get; set; }
+
+    private LogStep _step = LogStep.PickTemplate;
+    private DateTime _defaultDate = DateTime.Today;
+    private LoggedWorkout _workout = new() { Date = DateTime.Today };
+    private bool _isNew = true;
+    private string? _error;
+
+    private List<WorkoutTemplate> _templates = new();
+    private Dictionary<string, Exercise> _templateExByName = new(StringComparer.OrdinalIgnoreCase);
+    private bool _stepThrough = false;
+    private int _currentExerciseIndex = 0;
+
+    private LoggedExercise StepExercise => _workout.Exercises[_currentExerciseIndex];
+    private Exercise? GetTemplateEx(string name) =>
+        _templateExByName.TryGetValue(name, out var ex) ? ex : null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+        _templates = await WorkoutService.GetTemplatesAsync();
+
+        // Apply pre-filled date from calendar (only for new workouts)
+        if (!Id.HasValue && DateParam is not null
+            && DateTime.TryParse(DateParam, out var parsedDate))
+        {
+            _defaultDate = parsedDate.Date;
+            _workout.Date = _defaultDate;
+        }
+
+        if (Id.HasValue)
+        {
+            var workouts = await WorkoutService.GetLoggedWorkoutsAsync();
+            var existing = workouts.FirstOrDefault(w => w.Id == Id.Value);
+            if (existing is not null)
+            {
+                _workout = existing;
+                _isNew = false;
+                if (_workout.TemplateId.HasValue)
+                    BuildTemplateIndex(_templates.FirstOrDefault(t => t.Id == _workout.TemplateId.Value));
+            }
+            _step = LogStep.Logging;
+        }
+        else if (TemplateId.HasValue)
+        {
+            var template = _templates.FirstOrDefault(t => t.Id == TemplateId.Value);
+            if (template is not null)
+            {
+                ApplyTemplate(template);
+                _stepThrough = template.Exercises.Count > 1;
+            }
+            _step = LogStep.Logging;
+        }
+        else
+        {
+            _step = _templates.Count > 0 ? LogStep.PickTemplate : LogStep.Logging;
+        }
+    }
+
+    // ── Template picker ──────────────────────────────────
+
+    private void BuildTemplateIndex(WorkoutTemplate? template)
+    {
+        _templateExByName = template?.Exercises
+            .ToDictionary(e => e.Name, StringComparer.OrdinalIgnoreCase)
+            ?? new(StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void ApplyTemplate(WorkoutTemplate template)
+    {
+        _workout.TemplateId = template.Id;
+        _workout.Name = template.Name;
+        _workout.Date = _defaultDate;
+        BuildTemplateIndex(template);
+        _workout.Exercises = template.Exercises
+            .Select(e =>
+            {
+                var sets = e.LastSets.Count > 0
+                    ? e.LastSets.Select(s => new ExerciseSet
+                      {
+                          Reps = s.Reps,
+                          WeightKg = s.WeightKg,
+                          DurationSeconds = s.DurationSeconds
+                      }).ToList()
+                    : Enumerable.Range(0, Math.Max(1, e.Sets))
+                        .Select(_ => new ExerciseSet
+                        {
+                            Reps = e.Reps,
+                            WeightKg = e.WeightKg,
+                            DurationSeconds = e.DurationSeconds
+                        }).ToList();
+                return new LoggedExercise { Name = e.Name, Type = e.Type, Sets = sets };
+            })
+            .ToList();
+    }
+
+    private void SelectTemplate(WorkoutTemplate template)
+    {
+        ApplyTemplate(template);
+        _stepThrough = template.Exercises.Count > 1;
+        _currentExerciseIndex = 0;
+        _step = LogStep.Logging;
+    }
+
+    private void StartBlank()
+    {
+        _workout = new LoggedWorkout { Date = _defaultDate };
+        _templateExByName.Clear();
+        _stepThrough = false;
+        _step = LogStep.Logging;
+    }
+
+    private void GoBack()
+    {
+        if (_isNew && _templates.Count > 0)
+        {
+            _workout = new LoggedWorkout { Date = _defaultDate };
+            _templateExByName.Clear();
+            _stepThrough = false;
+            _currentExerciseIndex = 0;
+            _step = LogStep.PickTemplate;
+        }
+        else
+        {
+            Cancel();
+        }
+    }
+
+    // ── Step-through ─────────────────────────────────────
+
+    private void SetViewMode(bool stepThrough) { _stepThrough = stepThrough; _currentExerciseIndex = 0; }
+    private void GoToExercise(int index) => _currentExerciseIndex = index;
+    private void PrevExercise() { if (_currentExerciseIndex > 0) _currentExerciseIndex--; }
+    private void NextExercise() { if (_currentExerciseIndex < _workout.Exercises.Count - 1) _currentExerciseIndex++; }
+
+    private string ViewBtnClass(bool forStep) =>
+        forStep == _stepThrough ? "view-toggle__btn view-toggle__btn--active" : "view-toggle__btn";
+    private string PipClass(int index) =>
+        index == _currentExerciseIndex ? "exercise-stepper__pip exercise-stepper__pip--active" : "exercise-stepper__pip";
+
+    // ── Exercise / set editing ───────────────────────────
+
+    private void AddExercise()
+    {
+        var ex = new LoggedExercise { Type = ExerciseType.RepsWeight };
+        ex.Sets.Add(new ExerciseSet());
+        _workout.Exercises.Add(ex);
+        if (_stepThrough) _currentExerciseIndex = _workout.Exercises.Count - 1;
+    }
+
+    private void RemoveExercise(int idx)
+    {
+        _workout.Exercises.RemoveAt(idx);
+        if (_currentExerciseIndex >= _workout.Exercises.Count)
+            _currentExerciseIndex = Math.Max(0, _workout.Exercises.Count - 1);
+    }
+
+    private void AddSet(LoggedExercise ex) => ex.Sets.Add(new ExerciseSet());
+    private void RemoveSet(LoggedExercise ex, int setIdx) => ex.Sets.RemoveAt(setIdx);
+
+    private void SetType(LoggedExercise ex, ExerciseType type)
+    {
+        ex.Type = type;
+        foreach (var set in ex.Sets)
+        {
+            if (type == ExerciseType.RepsWeight) set.DurationSeconds = null;
+            else { set.Reps = null; set.WeightKg = null; }
+        }
+    }
+
+    // ── Last-time helper ─────────────────────────────────
+
+    private static string FormatLastSets(Exercise tmplEx)
+    {
+        if (tmplEx.LastSets.Count == 0) return "";
+        var n = tmplEx.LastSets.Count;
+        var first = tmplEx.LastSets[0];
+        if (tmplEx.Type == ExerciseType.RepsWeight)
+        {
+            var reps = first.Reps?.ToString() ?? "?";
+            var wt = first.WeightKg.HasValue
+                ? $" @ {first.WeightKg.Value.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)} kg"
+                : "";
+            return $"{n} × {reps} reps{wt}";
+        }
+        return $"{n} × {first.DurationSeconds?.ToString() ?? "?"} s";
+    }
+
+    // ── Save / write-back ────────────────────────────────
+
+    private async Task Save()
+    {
+        _error = null;
+        if (string.IsNullOrWhiteSpace(_workout.Name)) { _error = "Please enter a workout name."; return; }
+        if (_workout.Exercises.Count == 0) { _error = "Please add at least one exercise."; return; }
+
+        await WorkoutService.SaveLoggedWorkoutAsync(_workout);
+        await WriteBackToTemplateAsync();
+        Nav.NavigateTo("/workouts");
+    }
+
+    private async Task WriteBackToTemplateAsync()
+    {
+        if (!_workout.TemplateId.HasValue) return;
+        var templates = await WorkoutService.GetTemplatesAsync();
+        var template = templates.FirstOrDefault(t => t.Id == _workout.TemplateId.Value);
+        if (template is null) return;
+
+        foreach (var loggedEx in _workout.Exercises)
+        {
+            var tmplEx = template.Exercises.FirstOrDefault(e =>
+                e.Name.Equals(loggedEx.Name, StringComparison.OrdinalIgnoreCase));
+            if (tmplEx is null) continue;
+
+            tmplEx.LastSets = loggedEx.Sets
+                .Select(s => new ExerciseSet { Reps = s.Reps, WeightKg = s.WeightKg, DurationSeconds = s.DurationSeconds })
+                .ToList();
+            tmplEx.LastNotes = loggedEx.Notes;
+            tmplEx.LastProgressiveOverload = loggedEx.ProgressiveOverload;
+            tmplEx.LastPerformed = _workout.Date;
+            tmplEx.Sets = loggedEx.Sets.Count; // keep default count in sync
+        }
+        await WorkoutService.SaveTemplateAsync(template);
+    }
+
+    private void Cancel() => Nav.NavigateTo("/workouts");
+
+    private static int? ParseInt(object? value) =>
+        int.TryParse(value?.ToString(), out var v) ? v : null;
+
+    private static double? ParseDouble(object? value) =>
+        double.TryParse(value?.ToString(), System.Globalization.NumberStyles.Any,
+            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
+}
+

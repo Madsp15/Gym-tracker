@@ -1,0 +1,141 @@
+﻿@page "/templates"
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+
+<PageTitle>Workout Templates – Gym Tracker</PageTitle>
+
+<div class="page-header">
+    <h2 class="page-header__title">Workout Templates</h2>
+    @if (WorkoutService.IsInitialized)
+    {
+        <button class="btn btn-accent" @onclick="CreateNew">+ New Template</button>
+    }
+</div>
+
+@if (!WorkoutService.IsInitialized)
+{
+    <p class="text-muted ps-3">Loading…</p>
+}
+else if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsFileSetup)
+{
+    <!-- File setup banner -->
+    <div class="file-setup-banner">
+        <div class="file-setup-banner__body">
+            <p class="file-setup-banner__title">Choose where to save your templates</p>
+            <p class="file-setup-banner__desc">
+                Your browser supports saving directly to a file on your device.
+                Pick a location (e.g. your iCloud Drive or OneDrive folder) for
+                automatic cross-device sync — no account needed.
+            </p>
+            <div class="file-setup-banner__actions">
+                <button class="btn btn-accent" @onclick="PickFile">Choose save location</button>
+                <button class="btn btn-ghost btn-sm" @onclick="SkipFileSetup">Use browser storage instead</button>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    @if (WorkoutService.IsFileApiSupported)
+    {
+        <div class="file-status">
+            <span class="file-status__label">Saving to file</span>
+            <button class="btn btn-ghost btn-sm" @onclick="ChangeFile">Change file…</button>
+        </div>
+    }
+
+    @if (_templates is null)
+    {
+        <p class="text-muted ps-3">Loading…</p>
+    }
+    else if (_templates.Count == 0)
+    {
+        <div class="empty-state">
+            <p class="empty-state__text">No templates yet. Create your first one!</p>
+            <button class="btn btn-accent" @onclick="CreateNew">+ New Template</button>
+        </div>
+    }
+    else
+    {
+        <div class="template-cards">
+            @foreach (var t in _templates)
+            {
+                <div class="template-card">
+                    <div class="template-card__body">
+                        <div class="template-card__name">@t.Name</div>
+                        <div class="template-card__meta">
+                            @t.Exercises.Count exercise@(t.Exercises.Count == 1 ? "" : "s")
+                        </div>
+                        <div class="template-card__actions">
+                            <button class="btn btn-sm btn-accent" @onclick="() => StartWorkout(t.Id)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>Start
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" @onclick="() => Edit(t.Id)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/></svg>Edit
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => Delete(t.Id)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true" style="vertical-align:-.15em;margin-right:.25em"><path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6zM14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/></svg>Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="template-card__diagram">
+                        <MuscleBodyDiagram ReadOnlyMuscleGroups="GetTemplateMuscles(t)"
+                                           ShowLabel="false" />
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<WorkoutTemplate>? _templates;
+    private bool _skipFileSetup;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+        if (!WorkoutService.NeedsFileSetup || _skipFileSetup)
+            _templates = await WorkoutService.GetTemplatesAsync();
+    }
+
+    private async Task PickFile()
+    {
+        var picked = await WorkoutService.PickFileAsync();
+        if (picked)
+            _templates = await WorkoutService.GetTemplatesAsync();
+    }
+
+    private async Task SkipFileSetup()
+    {
+        _skipFileSetup = true;
+        WorkoutService.NeedsFileSetup = false;
+        WorkoutService.IsFileApiSupported = false;
+        _templates = await WorkoutService.GetTemplatesAsync();
+    }
+
+    private async Task ChangeFile()
+    {
+        await WorkoutService.ClearFileHandleAsync();
+        _templates = null;
+    }
+
+    private void CreateNew() => Nav.NavigateTo("/templates/new");
+    private void Edit(Guid id) => Nav.NavigateTo($"/templates/{id}");
+    private void StartWorkout(Guid templateId) => Nav.NavigateTo($"/workouts/log/{templateId}");
+
+    private async Task Delete(Guid id)
+    {
+        await WorkoutService.DeleteTemplateAsync(id);
+        _templates = await WorkoutService.GetTemplatesAsync();
+    }
+
+    private static IReadOnlyList<string> GetTemplateMuscles(WorkoutTemplate t) =>
+        t.Exercises
+            .Select(e => e.MuscleGroup)
+            .Where(mg => !string.IsNullOrWhiteSpace(mg))
+            .Select(mg => mg!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mg => mg)
+            .ToList();
+}

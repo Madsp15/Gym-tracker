@@ -1,0 +1,272 @@
+﻿/* ── Template picker ─────────────────────────────────── */
+
+.template-picker {
+    max-width: 640px;
+    margin: 0.75rem auto 2rem;
+    padding: 0 1rem;
+}
+
+/* Past-date badge shown above template picker */
+.log-date-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: #1e2a44;
+    border: 1px solid #283a5a;
+    border-radius: 2rem;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #c4b8ff;
+    margin-bottom: 0.85rem;
+}
+
+.template-picker__hint {
+    color: #7d90b5;
+    font-size: 0.9rem;
+    margin-bottom: 1.25rem;
+}
+
+.template-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+}
+
+.template-picker__card {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    padding: 1.25rem 1rem 1rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+    color: inherit;
+}
+
+.template-picker__card:hover,
+.template-picker__card:focus-visible {
+    background: #1e2a44;
+    border-color: #6A5BC2;
+    transform: translateY(-2px);
+    outline: none;
+}
+
+.template-picker__card--blank {
+    border-style: dashed;
+    opacity: 0.7;
+}
+
+.template-picker__card--blank:hover {
+    opacity: 1;
+}
+
+.template-picker__card-icon {
+    font-size: 1.75rem;
+    margin-bottom: 0.25rem;
+    display: block;
+}
+
+.template-picker__card-name {
+    font-weight: 600;
+    color: #D0DCF1;
+    font-size: 0.95rem;
+    display: block;
+}
+
+.template-picker__card-meta {
+    font-size: 0.75rem;
+    color: #7d90b5;
+    display: block;
+}
+
+/* ── View mode toggle ────────────────────────────────── */
+
+.view-toggle {
+    display: flex;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 0.4rem;
+    overflow: hidden;
+}
+
+.view-toggle__btn {
+    background: transparent;
+    border: none;
+    color: #7d90b5;
+    padding: 0.25rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.view-toggle__btn:hover {
+    background: #192033;
+    color: #D0DCF1;
+}
+
+.view-toggle__btn--active {
+    background: #6A5BC2;
+    color: #fff;
+}
+
+/* ── Exercise stepper ────────────────────────────────── */
+
+.exercise-stepper__bar {
+    display: flex;
+    gap: 0.4rem;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
+.exercise-stepper__pip {
+    width: 0.65rem;
+    height: 0.65rem;
+    border-radius: 50%;
+    background: #283a5a;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+    transition: background 0.15s, transform 0.1s;
+}
+
+.exercise-stepper__pip:hover {
+    background: #4a5a7a;
+    transform: scale(1.25);
+}
+
+.exercise-stepper__pip--active {
+    background: #6A5BC2;
+    transform: scale(1.15);
+}
+
+.exercise-stepper__label {
+    text-align: center;
+    font-size: 0.82rem;
+    color: #7d90b5;
+    margin-bottom: 0.85rem;
+}
+
+.exercise-stepper__nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+    gap: 0.5rem;
+}
+
+/* ── Set-row unit badge ───────────────────────────────── */
+
+.set-row__unit {
+    background: #283a5a !important;
+    border-color: #283a5a !important;
+    color: #7d90b5 !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.2rem 0.45rem;
+}
+
+/* ── Last-time hint bar ──────────────────────────────── */
+
+.last-time {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0 0.6rem;
+    padding: 0.45rem 0.65rem;
+    background: #0f1420;
+    border-radius: 0.4rem;
+    border-left: 3px solid #2F57A0;
+    font-size: 0.78rem;
+}
+
+.last-time__date {
+    color: #7d90b5;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.last-time__sets {
+    color: #a0b4d0;
+}
+
+.last-time__badge {
+    font-size: 0.85rem;
+    line-height: 1;
+}
+
+.last-time__note {
+    color: #7d90b5;
+    font-style: italic;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ── Exercise footer (PO + notes) ────────────────────── */
+
+.exercise-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid #283a5a;
+}
+
+.po-toggle {
+    align-self: flex-start;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 2rem;
+    color: #7d90b5;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 0.3rem 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.po-toggle:hover {
+    background: #192033;
+    color: #D0DCF1;
+}
+
+.po-toggle--active {
+    background: #2F57A0;
+    border-color: #2F57A0;
+    color: #fff;
+}
+
+.exercise-notes {
+    background: #0f1420 !important;
+    border-color: #283a5a !important;
+    color: #D0DCF1 !important;
+    font-size: 0.85rem;
+    resize: vertical;
+    min-height: 2.5rem;
+}
+
+.exercise-notes::placeholder {
+    color: #4a5a78;
+    opacity: 1;
+}
+
+.exercise-notes:focus {
+    background: #0f1420 !important;
+    color: #D0DCF1 !important;
+    border-color: #6A5BC2 !important;
+    box-shadow: none !important;
+}
+
