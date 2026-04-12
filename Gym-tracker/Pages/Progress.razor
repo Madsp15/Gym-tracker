@@ -1,6 +1,7 @@
 ﻿@page "/progress"
 @using System.Globalization
 @inject WorkoutService WorkoutService
+@inject IJSRuntime JS
 
 <PageTitle>Progress – Gym Tracker</PageTitle>
 
@@ -45,6 +46,25 @@ else
         </div>
     </div>
 
+    <div class="progress-highlights">
+        <div class="progress-highlights__chip">
+            <div class="progress-highlights__value">@TotalDaysActive</div>
+            <div class="progress-highlights__label">Days since start</div>
+        </div>
+        <div class="progress-highlights__chip">
+            <div class="progress-highlights__value">@TotalSetsLogged</div>
+            <div class="progress-highlights__label">Total sets</div>
+        </div>
+        <div class="progress-highlights__chip">
+            <div class="progress-highlights__value">@TotalVolumeStr<span class="progress-highlights__unit"> @WeightUnit</span></div>
+            <div class="progress-highlights__label">Volume lifted</div>
+        </div>
+        <div class="progress-highlights__chip">
+            <div class="progress-highlights__value">@FavouriteDay</div>
+            <div class="progress-highlights__label">Favourite day</div>
+        </div>
+    </div>
+
     <div class="progress-sort">
         <span class="progress-sort__label">Sort by:</span>
         <button class="progress-sort__btn @(_sort == "recent" ? "progress-sort__btn--active" : "")" @onclick="SortByRecent">Recent</button>
@@ -68,8 +88,8 @@ else
             <div class="progress-card">
                 <div class="progress-card__header">
                     <span class="progress-card__name">@s.Name</span>
-                    <span class="progress-card__type-badge @(s.Type == ExerciseType.Timed ? "progress-card__type-badge--timed" : "")">
-                        @(s.Type == ExerciseType.Timed ? "Timed" : "Reps")
+                    <span class="progress-card__type-badge @(s.Type == ExerciseType.Timed ? "progress-card__type-badge--timed" : s.Type == ExerciseType.Cardio ? "progress-card__type-badge--cardio" : "")">
+                        @(s.Type == ExerciseType.Timed ? "Timed" : s.Type == ExerciseType.Cardio ? "Cardio" : "Reps")
                     </span>
                 </div>
 
@@ -106,6 +126,10 @@ else
                             <div class="progress-bar-fill" style="@BarStyle(s.BarWidthPct)"></div>
                         </div>
                         <div class="progress-card__bar-label">All-time best: @(s.AllTimeBestWeight.HasValue ? FormatWeight(s.AllTimeBestWeight.Value) : "–")</div>
+                        @if (s.BestEstimated1RM.HasValue)
+                        {
+                            <div class="progress-card__1rm">Est. 1RM: <strong>@FormatWeight(s.BestEstimated1RM.Value)</strong></div>
+                        }
                     </div>
                 }
                 else if (s.Type == ExerciseType.Timed && s.FirstBestDuration.HasValue)
@@ -128,13 +152,82 @@ else
                         <div class="progress-card__bar-label">All-time best: @(s.AllTimeBestDuration.HasValue ? FormatDuration(s.AllTimeBestDuration.Value) : "–")</div>
                     </div>
                 }
+                else if (s.Type == ExerciseType.Cardio && s.FirstBestDistance.HasValue)
+                {
+                    <div class="progress-card__metric">
+                        <div class="progress-card__metric-header">
+                            <span class="progress-card__metric-label">Best distance per session</span>
+                            <span class="progress-card__metric-delta @DeltaCssClass(s.DistanceDelta)">
+                                @DistanceDeltaText(s)
+                            </span>
+                        </div>
+                        <div class="progress-card__weight-values">
+                            <span>@FormatDistance(s.FirstBestDistance.Value)</span>
+                            <span class="progress-card__arrow">→</span>
+                            <span class="progress-card__weight-latest">@(s.LatestBestDistance.HasValue ? FormatDistance(s.LatestBestDistance.Value) : "–")</span>
+                        </div>
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" style="@BarStyle(s.DistanceBarWidthPct)"></div>
+                        </div>
+                        <div class="progress-card__bar-label">All-time best: @(s.AllTimeBestDistance.HasValue ? FormatDistance(s.AllTimeBestDistance.Value) : "–")</div>
+                    </div>
+                    @if (s.FirstBestPace.HasValue)
+                    {
+                        <div class="progress-card__metric">
+                            <div class="progress-card__metric-header">
+                                <span class="progress-card__metric-label">Best pace per session</span>
+                                <span class="progress-card__metric-delta @PaceDeltaCssClass(s.PaceDelta)">
+                                    @PaceDeltaText(s)
+                                </span>
+                            </div>
+                            <div class="progress-card__weight-values">
+                                <span>@FormatPace(s.FirstBestPace.Value)</span>
+                                <span class="progress-card__arrow">→</span>
+                                <span class="progress-card__weight-latest">@(s.LatestBestPace.HasValue ? FormatPace(s.LatestBestPace.Value) : "–")</span>
+                            </div>
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill progress-bar-fill--pace" style="@BarStyle(s.PaceBarWidthPct)"></div>
+                            </div>
+                            <div class="progress-card__bar-label">All-time best: @(s.AllTimeBestPace.HasValue ? FormatPace(s.AllTimeBestPace.Value) : "–")</div>
+                        </div>
+                    }
+                    @if (s.TotalDistanceKm > 0)
+                    {
+                        <div class="progress-card__total-distance">Total: @FormatDistance(s.TotalDistanceKm)</div>
+                    }
+                }
                 else
                 {
-                    <div class="progress-card__no-data">No weight or duration data recorded yet.</div>
+                    <div class="progress-card__no-data">No data recorded yet.</div>
                 }
 
+                <div class="progress-card__extra-stats">
+                    @if (s.SessionCount > 1)
+                    {
+                        <span class="progress-card__stat-chip">@s.AvgGapText</span>
+                    }
+                    @if (!string.IsNullOrEmpty(s.FrequencyText))
+                    {
+                        <span class="progress-card__stat-chip">@s.FrequencyText</span>
+                    }
+                    @if (s.Type == ExerciseType.RepsWeight && s.TotalVolumeKg > 0)
+                    {
+                        <span class="progress-card__stat-chip">@FormatVolume(s.TotalVolumeKg) total vol.</span>
+                    }
+                </div>
+
                 <div class="progress-card__footer">
-                    @if (s.TotalSets > 0)
+                    @if (s.Type == ExerciseType.Cardio)
+                    {
+                        <span class="progress-card__volume">
+                            @s.TotalSets set@(s.TotalSets == 1 ? "" : "s") logged
+                            @if (s.TotalDistanceKm > 0)
+                            {
+                                <span> · @FormatDistance(s.TotalDistanceKm) total</span>
+                            }
+                        </span>
+                    }
+                    else if (s.TotalSets > 0)
                     {
                         <span class="progress-card__volume">
                             @s.TotalSets set@(s.TotalSets == 1 ? "" : "s") logged
@@ -144,10 +237,49 @@ else
                             }
                         </span>
                     }
+                    @if (s.Type == ExerciseType.Cardio && s.FirstBestPace.HasValue)
+                    {
+                        <button class="progress-chart__toggle" @onclick="() => TogglePaceChart(s)">
+                            @(_expandedPaceCharts.Contains(s.Name) ? "▲ Hide pace" : "▾ Pace")
+                        </button>
+                    }
                     <button class="progress-chart__toggle" @onclick="() => ToggleChart(s)">
                         @(_expandedCharts.Contains(s.Name) ? "▲ Hide chart" : "▾ Chart")
                     </button>
                 </div>
+
+                @if (s.Type == ExerciseType.Cardio && _expandedPaceCharts.Contains(s.Name))
+                {
+                    @if (PaceChartOf(s.Name).Points.Count >= 1)
+                    {
+                        <div class="progress-chart">
+                            <div class="progress-chart__subtitle">Pace over time · lower = faster</div>
+                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg">
+                                <line x1="50" y1="10"  x2="550" y2="10"  class="chart-grid" />
+                                <line x1="50" y1="49"  x2="550" y2="49"  class="chart-grid" />
+                                <line x1="50" y1="87"  x2="550" y2="87"  class="chart-grid" />
+                                <line x1="50" y1="125" x2="550" y2="125" class="chart-grid chart-grid--axis" />
+                                <line x1="50" y1="10"  x2="50"  y2="125" class="chart-grid chart-grid--axis" />
+                                <text x="45" y="14"  class="chart-label" text-anchor="end">@PaceChartOf(s.Name).YMaxLabel</text>
+                                <text x="45" y="128" class="chart-label" text-anchor="end">@PaceChartOf(s.Name).YMinLabel</text>
+                                <path d="@PaceChartOf(s.Name).AreaPath" class="chart-area chart-area--pace" />
+                                <path d="@PaceChartOf(s.Name).LinePath" class="chart-line chart-line--pace" />
+                                @foreach (var pt in PaceChartOf(s.Name).Points)
+                                {
+                                    <circle cx="@Fmt(pt.X)" cy="@Fmt(pt.Y)" r="3.5" class="chart-dot chart-dot--pace">
+                                        <title>@pt.DateLabel: @pt.ValueLabel</title>
+                                    </circle>
+                                }
+                                <text x="50"  y="150" class="chart-label" text-anchor="start">@PaceChartOf(s.Name).FirstDateLabel</text>
+                                <text x="550" y="150" class="chart-label" text-anchor="end">@PaceChartOf(s.Name).LastDateLabel</text>
+                            </svg>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="progress-chart__empty">Not enough data for a pace chart yet.</p>
+                    }
+                }
 
                 @if (_expandedCharts.Contains(s.Name))
                 {
@@ -161,7 +293,7 @@ else
                                 <line x1="50" y1="125" x2="550" y2="125" class="chart-grid chart-grid--axis" />
                                 <line x1="50" y1="10"  x2="50"  y2="125" class="chart-grid chart-grid--axis" />
                                 <text x="45" y="14"  class="chart-label" text-anchor="end">@ChartOf(s.Name).YMaxLabel</text>
-                                <text x="45" y="128" class="chart-label" text-anchor="end">0</text>
+                                <text x="45" y="128" class="chart-label" text-anchor="end">@ChartOf(s.Name).YMinLabel</text>
                                 <path d="@ChartOf(s.Name).AreaPath" class="chart-area" />
                                 <path d="@ChartOf(s.Name).LinePath" class="chart-line" />
                                 @foreach (var pt in ChartOf(s.Name).Points)
@@ -189,10 +321,19 @@ else
 @code {
     private List<LoggedWorkout>?          _workouts;
     private List<WorkoutTemplate>?        _templates;
-    private List<ExerciseStat>            _stats          = new();
-    private string                        _sort           = "recent";
-    private HashSet<string>               _expandedCharts = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, ChartData> _chartDataCache = new(StringComparer.OrdinalIgnoreCase);
+    private List<ExerciseStat>            _stats             = new();
+    private string                        _sort              = "recent";
+    private HashSet<string>               _expandedCharts    = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>               _expandedPaceCharts = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ChartData> _chartDataCache    = new(StringComparer.OrdinalIgnoreCase);
+
+    // ── Weight unit ───────────────────────────────────────────────────
+    private bool   _isMetric  = true;
+    private string WeightUnit => _isMetric ? "kg" : "lbs";
+
+    // ── Distance unit ─────────────────────────────────────────────────
+    private bool   _isKm        = true;
+    private string DistanceUnit => _isKm ? "km" : "mi";
 
     // ── Global summary computed properties ───────────────────────────
 
@@ -211,10 +352,53 @@ else
         get
         {
             if (_workouts is null) return 0;
-            var today         = DateTime.Today;
+            var today          = DateTime.Today;
             var daysFromMonday = ((int)today.DayOfWeek + 6) % 7;
-            var monday        = today.AddDays(-daysFromMonday);
+            var monday         = today.AddDays(-daysFromMonday);
             return _workouts.Count(w => w.Date.Date >= monday);
+        }
+    }
+
+    private int TotalSetsLogged =>
+        _workouts?.Sum(w => w.Exercises.Sum(e => e.Sets.Count)) ?? 0;
+
+    private string TotalVolumeStr
+    {
+        get
+        {
+            if (_workouts is null) return "0";
+            var kg = _workouts
+                .SelectMany(w => w.Exercises)
+                .Where(e => e.Type == ExerciseType.RepsWeight)
+                .SelectMany(e => e.Sets)
+                .Where(s => s.WeightKg > 0 && s.Reps > 0)
+                .Sum(s => s.WeightKg!.Value * s.Reps!.Value);
+            var v = _isMetric ? kg : kg * 2.20462;
+            if (v >= 1_000_000) return $"{v / 1_000_000:0.#}M";
+            if (v >= 1_000)     return $"{v / 1_000:0.#}k";
+            return ((int)v).ToString();
+        }
+    }
+
+    private string FavouriteDay
+    {
+        get
+        {
+            if (_workouts is null || _workouts.Count < 3) return "–";
+            return _workouts
+                .GroupBy(w => w.Date.DayOfWeek)
+                .OrderByDescending(g => g.Count())
+                .First().Key switch
+            {
+                DayOfWeek.Monday    => "Monday",
+                DayOfWeek.Tuesday   => "Tuesday",
+                DayOfWeek.Wednesday => "Wednesday",
+                DayOfWeek.Thursday  => "Thursday",
+                DayOfWeek.Friday    => "Friday",
+                DayOfWeek.Saturday  => "Saturday",
+                DayOfWeek.Sunday    => "Sunday",
+                _                   => "–"
+            };
         }
     }
 
@@ -243,13 +427,45 @@ else
         }
     }
 
+    private void TogglePaceChart(ExerciseStat s)
+    {
+        var key = s.Name + "|pace";
+        if (!_expandedPaceCharts.Remove(s.Name))
+        {
+            _expandedPaceCharts.Add(s.Name);
+            _chartDataCache.TryAdd(key, BuildPaceChartData(s));
+        }
+    }
+
     private ChartData ChartOf(string name) =>
         _chartDataCache.TryGetValue(name, out var cd) ? cd : ChartData.Empty;
 
+    private ChartData PaceChartOf(string name) =>
+        _chartDataCache.TryGetValue(name + "|pace", out var cd) ? cd : ChartData.Empty;
+
     // ── Formatting helpers ───────────────────────────────────────────
 
-    private static string FormatWeight(double kg) =>
-        kg.ToString("0.##", CultureInfo.InvariantCulture) + " kg";
+    private string FormatWeight(double kg)
+    {
+        var v = _isMetric ? kg : Math.Round(kg * 2.20462, 1);
+        return v.ToString("0.##", CultureInfo.InvariantCulture) + " " + WeightUnit;
+    }
+
+    private static string FormatDistance(double km, bool isKm, string unit)
+    {
+        var v = isKm ? km : Math.Round(km * 0.621371, 3);
+        return v.ToString("0.##", CultureInfo.InvariantCulture) + " " + unit;
+    }
+
+    private string FormatDistance(double km) => FormatDistance(km, _isKm, DistanceUnit);
+
+    private string FormatVolume(double kg)
+    {
+        var v = _isMetric ? kg : kg * 2.20462;
+        if (v >= 1_000_000) return $"{v / 1_000_000:0.#}M {WeightUnit}";
+        if (v >= 1_000)     return $"{v / 1_000:0.#}k {WeightUnit}";
+        return $"{(int)v} {WeightUnit}";
+    }
 
     private static string FormatDuration(int seconds)
     {
@@ -289,12 +505,13 @@ else
         };
     }
 
-    private static string WeightDeltaText(ExerciseStat s)
+    private string WeightDeltaText(ExerciseStat s)
     {
         if (s.WeightDelta is null) return "–";
         var d    = s.WeightDelta.Value;
-        var sign = d > 0 ? "+" : "";
-        var text = $"{sign}{d.ToString("0.##", CultureInfo.InvariantCulture)} kg";
+        var dv   = _isMetric ? d : Math.Round(d * 2.20462, 1);
+        var sign = dv > 0 ? "+" : "";
+        var text = $"{sign}{dv.ToString("0.##", CultureInfo.InvariantCulture)} {WeightUnit}";
         if (s.WeightDeltaPct is not null)
             text += $" ({(d > 0 ? "+" : "")}{s.WeightDeltaPct.Value.ToString("0.#", CultureInfo.InvariantCulture)}%)";
         return text;
@@ -311,6 +528,92 @@ else
         return text;
     }
 
+    private string DistanceDeltaText(ExerciseStat s)
+    {
+        if (s.DistanceDelta is null) return "–";
+        var d    = s.DistanceDelta.Value;
+        var sign = d > 0 ? "+" : "";
+        var text = $"{sign}{FormatDistance(Math.Abs(d))}";
+        if (s.DistanceDeltaPct is not null)
+            text += $" ({(d > 0 ? "+" : "")}{s.DistanceDeltaPct.Value.ToString("0.#", CultureInfo.InvariantCulture)}%)";
+        return text;
+    }
+
+    private string FormatPace(double minPerKm)
+    {
+        if (minPerKm <= 0) return "–";
+        // convert to min/mi if needed (1 mi = 1.60934 km)
+        var paceDisplay = _isKm ? minPerKm : minPerKm * 1.60934;
+        var mins = (int)paceDisplay;
+        var secs = (int)Math.Round((paceDisplay - mins) * 60);
+        if (secs == 60) { mins++; secs = 0; }
+        return $"{mins}:{secs:D2} /{DistanceUnit}";
+    }
+
+    private string PaceDeltaText(ExerciseStat s)
+    {
+        if (s.PaceDelta is null) return "–";
+        var d    = _isKm ? s.PaceDelta.Value : s.PaceDelta.Value * 1.60934;
+        var abs  = Math.Abs(d);
+        var mins = (int)abs;
+        var secs = (int)Math.Round((abs - mins) * 60);
+        if (secs == 60) { mins++; secs = 0; }
+        return $"{(d < 0 ? "−" : "+")}{mins}:{secs:D2} /{DistanceUnit}";
+    }
+
+    // For pace: negative delta = faster = good → show as "up"
+    private static string PaceDeltaCssClass(double? delta) => delta switch
+    {
+        < 0 => "progress-card__metric-delta--up",
+        > 0 => "progress-card__metric-delta--down",
+        _   => "progress-card__metric-delta--same"
+    };
+
+    private ChartData BuildPaceChartData(ExerciseStat s)
+    {
+        var pts = BuildPaceChartPoints(s);
+        if (pts.Count == 0) return ChartData.Empty;
+
+        var fastest   = s.AllTimeBestPace  ?? 0;
+        var slowest   = s.SessionHistory.Where(h => h.Pace > 0).Select(h => h.Pace!.Value).DefaultIfEmpty(0).Max();
+        var firstDate = s.SessionHistory.First().Date.ToString("d MMM");
+        var lastDate  = s.SessionHistory.Last().Date.ToString("d MMM yyyy");
+
+        return new ChartData(pts, BuildLinePath(pts), BuildAreaPath(pts),
+            FormatPace(fastest), FormatPace(slowest), firstDate, lastDate);
+    }
+
+    private List<ChartPoint> BuildPaceChartPoints(ExerciseStat s)
+    {
+        var history = s.SessionHistory;
+        if (history.Count == 0) return new();
+
+        var dataPoints = history
+            .Where(h => h.Pace.HasValue && h.Pace.Value > 0)
+            .Select(h => (h.Date, Pace: h.Pace!.Value))
+            .ToList();
+        if (dataPoints.Count == 0) return new();
+
+        var fastest   = dataPoints.Min(p => p.Pace);
+        var slowest   = dataPoints.Max(p => p.Pace);
+        var yFast     = fastest * 0.97;
+        var ySlow     = slowest * 1.03;
+        var yRange    = ySlow - yFast;
+        var minTicks  = dataPoints.Min(p => p.Date.Ticks);
+        var maxTicks  = dataPoints.Max(p => p.Date.Ticks);
+        var tickRange = maxTicks - minTicks;
+
+        return dataPoints.Select((p, i) =>
+        {
+            var x = tickRange > 0
+                ? CL + (double)(p.Date.Ticks - minTicks) / tickRange * CW
+                : (dataPoints.Count > 1 ? CL + (double)i / (dataPoints.Count - 1) * CW : CL + CW / 2);
+            // Inverted: faster (lower pace) → top (CT), slower → bottom (CB)
+            var y = yRange > 0 ? CT + (p.Pace - yFast) / yRange * CH : CT + CH / 2d;
+            return new ChartPoint(x, y, p.Date.ToString("d MMM yyyy"), FormatPace(p.Pace));
+        }).ToList();
+    }
+
     private static string Fmt(double v) =>
         v.ToString("0.##", CultureInfo.InvariantCulture);
 
@@ -319,7 +622,7 @@ else
     private const double CL = 50d, CR = 550d, CT = 10d, CB = 125d;
     private const double CW = CR - CL, CH = CB - CT;
 
-    private sealed record SessionPoint(DateTime Date, double? Weight, int? Duration);
+    private sealed record SessionPoint(DateTime Date, double? Weight, int? Duration, double? Distance, double? Pace);
     private sealed record ChartPoint(double X, double Y, string DateLabel, string ValueLabel);
 
     private sealed record ChartData(
@@ -327,10 +630,11 @@ else
         string           LinePath,
         string           AreaPath,
         string           YMaxLabel,
+        string           YMinLabel,
         string           FirstDateLabel,
         string           LastDateLabel)
     {
-        public static readonly ChartData Empty = new(new(), "", "", "", "", "");
+        public static readonly ChartData Empty = new(new(), "", "", "", "", "", "");
     }
 
     private ChartData BuildChartData(ExerciseStat s)
@@ -339,18 +643,19 @@ else
         if (pts.Count == 0) return ChartData.Empty;
 
         var isWeight = s.Type == ExerciseType.RepsWeight;
+        var isCardio = s.Type == ExerciseType.Cardio;
         var vals = s.SessionHistory
-            .Select(h => isWeight ? (h.Weight ?? 0) : (double)(h.Duration ?? 0))
+            .Select(h => isWeight ? (h.Weight ?? 0) : isCardio ? (h.Distance ?? 0) : (double)(h.Duration ?? 0))
             .Where(v => v > 0).ToList();
         if (vals.Count == 0) return ChartData.Empty;
 
         var rawMax    = vals.Max();
-        var yMaxLabel = isWeight ? FormatWeight(rawMax) : FormatDuration((int)rawMax);
+        var yMaxLabel = isWeight ? FormatWeight(rawMax) : isCardio ? FormatDistance(rawMax) : FormatDuration((int)rawMax);
         var firstDate = s.SessionHistory.First().Date.ToString("d MMM");
         var lastDate  = s.SessionHistory.Last().Date.ToString("d MMM yyyy");
 
         return new ChartData(pts, BuildLinePath(pts), BuildAreaPath(pts),
-            yMaxLabel, firstDate, lastDate);
+            yMaxLabel, "0", firstDate, lastDate);
     }
 
     private List<ChartPoint> BuildChartPoints(ExerciseStat s)
@@ -359,8 +664,9 @@ else
         if (history.Count == 0) return new();
 
         var isWeight  = s.Type == ExerciseType.RepsWeight;
+        var isCardio  = s.Type == ExerciseType.Cardio;
         var dataPoints = history
-            .Select(h => (h.Date, Value: isWeight ? (h.Weight ?? 0) : (double)(h.Duration ?? 0)))
+            .Select(h => (h.Date, Value: isWeight ? (h.Weight ?? 0) : isCardio ? (h.Distance ?? 0) : (double)(h.Duration ?? 0)))
             .Where(p => p.Value > 0)
             .ToList();
         if (dataPoints.Count == 0) return new();
@@ -377,7 +683,7 @@ else
                 ? CL + (double)(p.Date.Ticks - minTicks) / tickRange * CW
                 : (dataPoints.Count > 1 ? CL + (double)i / (dataPoints.Count - 1) * CW : CL + CW / 2);
             var y      = CB - p.Value / yMax * CH;
-            var vLabel = isWeight ? FormatWeight(p.Value) : FormatDuration((int)p.Value);
+            var vLabel = isWeight ? FormatWeight(p.Value) : isCardio ? FormatDistance(p.Value) : FormatDuration((int)p.Value);
             return new ChartPoint(x, y, p.Date.ToString("d MMM yyyy"), vLabel);
         }).ToList();
     }
@@ -411,6 +717,10 @@ else
         await WorkoutService.InitializeAsync();
         _workouts  = await WorkoutService.GetLoggedWorkoutsAsync();
         _templates = await WorkoutService.GetTemplatesAsync();
+        var unitRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
+        _isMetric = unitRaw != "lbs";
+        var distRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
+        _isKm = distRaw != "mi";
         BuildStats();
     }
 
@@ -465,6 +775,35 @@ else
             int? latestBestDuration   = durationSessions.Count > 0 ? durationSessions.Last().Best       : null;
             int? allTimeBestDuration  = durationSessions.Count > 0 ? durationSessions.Max(x => x.Best)  : null;
 
+            // Best distance per session (Cardio exercises)
+            var distanceSessions = sessions
+                .Select(s => s.Ex.Sets.Sum(set => set.DistanceKm ?? 0))
+                .Select((dist, i) => (Index: i, Dist: dist))
+                .Where(x => x.Dist > 0)
+                .ToList();
+
+            double? firstBestDistance   = distanceSessions.Count > 0 ? distanceSessions.First().Dist : null;
+            double? latestBestDistance  = distanceSessions.Count > 0 ? distanceSessions.Last().Dist  : null;
+            double? allTimeBestDistance = distanceSessions.Count > 0 ? distanceSessions.Max(x => x.Dist) : null;
+            double  totalDistanceKm     = sessions.Sum(s => s.Ex.Sets.Sum(set => set.DistanceKm ?? 0));
+
+            // Best (fastest = lowest) pace per session (Cardio)
+            var paceSessions = sessions
+                .Select(s =>
+                {
+                    var pace = s.Ex.Sets
+                        .Where(set => set.DistanceKm > 0 && set.DurationSeconds > 0)
+                        .Select(set => set.DurationSeconds!.Value / 60.0 / set.DistanceKm!.Value)
+                        .DefaultIfEmpty(0d).Min();
+                    return (s.Date, Pace: pace);
+                })
+                .Where(x => x.Pace > 0)
+                .ToList();
+
+            double? firstBestPace   = paceSessions.Count > 0 ? paceSessions.First().Pace              : null;
+            double? latestBestPace  = paceSessions.Count > 0 ? paceSessions.Last().Pace               : null;
+            double? allTimeBestPace = paceSessions.Count > 0 ? paceSessions.Min(x => x.Pace)          : null;
+
             return new ExerciseStat
             {
                 Name                = kvp.Key,
@@ -478,18 +817,39 @@ else
                 FirstBestDuration   = firstBestDuration,
                 LatestBestDuration  = latestBestDuration,
                 AllTimeBestDuration = allTimeBestDuration,
+                FirstBestDistance   = firstBestDistance,
+                LatestBestDistance  = latestBestDistance,
+                AllTimeBestDistance = allTimeBestDistance,
+                TotalDistanceKm     = totalDistanceKm,
+                FirstBestPace       = firstBestPace,
+                LatestBestPace      = latestBestPace,
+                AllTimeBestPace     = allTimeBestPace,
                 TotalSets           = sessions.Sum(s => s.Ex.Sets.Count),
                 TotalReps           = sessions.Sum(s => s.Ex.Sets.Sum(set => set.Reps ?? 0)),
                 PoCount             = sessions.Count(s => s.Ex.ProgressiveOverload),
+                BestEstimated1RM    = sessions
+                    .SelectMany(s => s.Ex.Sets)
+                    .Where(set => set.WeightKg > 0 && set.Reps > 0)
+                    .Select(set => set.WeightKg!.Value * (1.0 + set.Reps!.Value / 30.0))
+                    .DefaultIfEmpty(0d).Max() is > 0d and var rm ? rm : (double?)null,
+                TotalVolumeKg       = sessions
+                    .SelectMany(s => s.Ex.Sets)
+                    .Where(set => set.WeightKg > 0 && set.Reps > 0)
+                    .Sum(set => set.WeightKg!.Value * set.Reps!.Value),
                 SessionHistory      = sessions.Select(s =>
                 {
-                    var w = s.Ex.Sets.Where(set => set.WeightKg.HasValue)
-                                     .Select(set => set.WeightKg!.Value)
-                                     .DefaultIfEmpty(0d).Max();
-                    var d = s.Ex.Sets.Where(set => set.DurationSeconds.HasValue)
-                                     .Select(set => set.DurationSeconds!.Value)
-                                     .DefaultIfEmpty(0).Max();
-                    return new SessionPoint(s.Date, w > 0 ? w : null, d > 0 ? d : null);
+                    var w    = s.Ex.Sets.Where(set => set.WeightKg.HasValue)
+                                         .Select(set => set.WeightKg!.Value)
+                                         .DefaultIfEmpty(0d).Max();
+                    var d    = s.Ex.Sets.Where(set => set.DurationSeconds.HasValue)
+                                         .Select(set => set.DurationSeconds!.Value)
+                                         .DefaultIfEmpty(0).Max();
+                    var dist = s.Ex.Sets.Sum(set => set.DistanceKm ?? 0);
+                    var pace = s.Ex.Sets
+                        .Where(set => set.DistanceKm > 0 && set.DurationSeconds > 0)
+                        .Select(set => set.DurationSeconds!.Value / 60.0 / set.DistanceKm!.Value)
+                        .DefaultIfEmpty(0d).Min();
+                    return new SessionPoint(s.Date, w > 0 ? w : null, d > 0 ? d : null, dist > 0 ? dist : null, pace > 0 ? pace : null);
                 }).ToArray()
             };
         }).ToList();
@@ -510,12 +870,21 @@ else
         public int?         FirstBestDuration   { get; init; }
         public int?         LatestBestDuration  { get; init; }
         public int?         AllTimeBestDuration { get; init; }
+        public double?      FirstBestDistance   { get; init; }
+        public double?      LatestBestDistance  { get; init; }
+        public double?      AllTimeBestDistance { get; init; }
+        public double       TotalDistanceKm     { get; init; }
+        public double?      FirstBestPace       { get; init; }   // min/km, lower = faster
+        public double?      LatestBestPace      { get; init; }
+        public double?      AllTimeBestPace     { get; init; }   // best (lowest) ever
         public int          TotalSets           { get; init; }
         public int          TotalReps           { get; init; }
         public int          PoCount             { get; init; }
+        public double?      BestEstimated1RM    { get; init; }
+        public double       TotalVolumeKg       { get; init; }
         public IReadOnlyList<SessionPoint> SessionHistory { get; init; } = Array.Empty<SessionPoint>();
 
-        // Derived
+        // Derived – Weight
         public double? WeightDelta =>
             LatestBestWeight.HasValue && FirstBestWeight.HasValue
                 ? LatestBestWeight.Value - FirstBestWeight.Value : null;
@@ -528,6 +897,7 @@ else
             AllTimeBestWeight is > 0 && LatestBestWeight.HasValue
                 ? Math.Min(100d, LatestBestWeight.Value / AllTimeBestWeight.Value * 100d) : 0d;
 
+        // Derived – Duration
         public int? DurationDelta =>
             LatestBestDuration.HasValue && FirstBestDuration.HasValue
                 ? LatestBestDuration.Value - FirstBestDuration.Value : null;
@@ -540,8 +910,51 @@ else
             AllTimeBestDuration is > 0 && LatestBestDuration.HasValue
                 ? Math.Min(100d, (double)LatestBestDuration.Value / AllTimeBestDuration.Value * 100d) : 0d;
 
+        // Derived – Distance (Cardio)
+        public double? DistanceDelta =>
+            LatestBestDistance.HasValue && FirstBestDistance.HasValue
+                ? LatestBestDistance.Value - FirstBestDistance.Value : null;
+
+        public double? DistanceDeltaPct =>
+            DistanceDelta.HasValue && FirstBestDistance is > 0
+                ? DistanceDelta.Value / FirstBestDistance.Value * 100 : null;
+
+        public double DistanceBarWidthPct =>
+            AllTimeBestDistance is > 0 && LatestBestDistance.HasValue
+                ? Math.Min(100d, LatestBestDistance.Value / AllTimeBestDistance.Value * 100d) : 0d;
+
+        // Derived – Pace (Cardio, lower = faster = better)
+        public double? PaceDelta =>
+            LatestBestPace.HasValue && FirstBestPace.HasValue
+                ? LatestBestPace.Value - FirstBestPace.Value : null;   // negative = improvement
+
+        public double? PaceDeltaPct =>
+            PaceDelta.HasValue && FirstBestPace is > 0
+                ? PaceDelta.Value / FirstBestPace.Value * 100 : null;
+
+        // Bar: how close latest pace is to all-time best (100% when equal)
+        public double PaceBarWidthPct =>
+            AllTimeBestPace is > 0 && LatestBestPace is > 0
+                ? Math.Min(100d, AllTimeBestPace.Value / LatestBestPace.Value * 100d) : 0d;
+
         /// <summary>Used for "most improved" sort order.</summary>
-        public double ImprovementPct => WeightDeltaPct ?? DurationDeltaPct ?? 0;
+        public double ImprovementPct => WeightDeltaPct ?? DurationDeltaPct ?? DistanceDeltaPct ?? -(PaceDeltaPct ?? 0);
+
+        public string AvgGapText =>
+            SessionCount > 1
+                ? $"every {(int)Math.Round((LastDate - FirstDate).TotalDays / (SessionCount - 1))} days"
+                : "1 session";
+
+        public string FrequencyText
+        {
+            get
+            {
+                if (SessionCount < 2) return "";
+                var weeks = (LastDate - FirstDate).TotalDays / 7.0;
+                if (weeks < 1) return "";
+                return $"{(SessionCount / weeks).ToString("0.#", CultureInfo.InvariantCulture)}×/wk";
+            }
+        }
     }
 
     // ── Template grouping ─────────────────────────────────────────────

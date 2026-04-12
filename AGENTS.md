@@ -30,7 +30,7 @@ There is no API server or database. All data is persisted client-side by `Workou
 | `WorkoutStore` | Root container: `Version`, `List<WorkoutTemplate> Templates`, `List<LoggedWorkout> LoggedWorkouts` |
 | `WorkoutTemplate` | Reusable plan: `Guid Id`, `string Name`, `List<Exercise> Exercises` |
 | `Exercise` | Template exercise: `Name`, `ExerciseType`, `string? MuscleGroup`, `int Sets` (default count), optional `Reps`/`WeightKg`/`DurationSeconds` (first-use defaults), plus last-session data: `List<ExerciseSet> LastSets`, `string? LastNotes`, `bool LastProgressiveOverload`, `DateTime? LastPerformed` |
-| `LoggedWorkout` | A completed session: `Guid Id`, `string Name`, `DateTime Date`, `Guid? TemplateId`, `List<LoggedExercise>` |
+| `LoggedWorkout` | A completed session: `Guid Id`, `string Name`, `DateTime Date`, `Guid? TemplateId`, `List<LoggedExercise>`, `int? DurationMinutes` (stopwatch-recorded session length) |
 | `LoggedExercise` | Exercise within a session: `Name`, `ExerciseType`, `List<ExerciseSet> Sets`, `string? Notes`, `bool ProgressiveOverload` |
 | `ExerciseSet` | One set: `int? Reps`, `double? WeightKg`, `int? DurationSeconds` |
 | `ExerciseType` | Enum: `RepsWeight` \| `Timed` |
@@ -46,6 +46,8 @@ There is no API server or database. All data is persisted client-side by `Workou
 | `/workouts/log` | `Pages/LogWorkout.razor` | Template picker → log new workout |
 | `/workouts/log/{templateId:guid}` | `Pages/LogWorkout.razor` | Deep-link: start workout directly from a specific template |
 | `/workouts/{id:guid}` | `Pages/LogWorkout.razor` | Edit existing logged workout |
+| `/progress` | `Pages/Progress.razor` | Per-exercise stats, charts, and global summary |
+| `/settings` | `Pages/Settings.razor` | Storage management, export/import backup, PWA install, default rest timer, clear all data |
 | `/workouts-legacy/...` | `Pages/WorkoutEdit.razor` | **Deprecated** – do not use |
 
 ## Developer Workflows
@@ -64,6 +66,18 @@ The project uses Blazor dev-server (`Microsoft.AspNetCore.Components.WebAssembly
 
 ### New pages
 Place routable components in `Pages/`, add a `@page "/route"` directive, and register the nav link in `Layout/NavMenu.razor`. Pages inherit `MainLayout` by default.
+
+### NavMenu icons
+Each nav link in `Layout/NavMenu.razor` uses a `<span class="bi bi-{name}-nav-menu">` element for its icon. The icon is rendered as a CSS `background-image` (inline SVG, `fill='white'`) defined in `Layout/NavMenu.razor.css`. **When adding a new nav link, you must add a matching `.bi-{name}-nav-menu` rule to `NavMenu.razor.css`** — the span without a CSS rule renders as an invisible blank space.
+
+Current icon classes and their Bootstrap Icons source:
+| CSS class | Icon |
+|-----------|------|
+| `.bi-house-door-fill-nav-menu` | `bi-house-door-fill` |
+| `.bi-grid-fill-nav-menu` | `bi-grid-fill` |
+| `.bi-activity-nav-menu` | `bi-activity` |
+| `.bi-graph-up-nav-menu` | `bi-graph-up` |
+| `.bi-gear-fill-nav-menu` | `bi-gear-fill` |
 
 ### Styling
 - **Global** CSS → `wwwroot/css/app.css`
@@ -98,6 +112,7 @@ Key members:
 - `ClearFileHandleAsync()` – lets the user switch to a different file
 - CRUD: `GetTemplatesAsync`, `SaveTemplateAsync`, `DeleteTemplateAsync`
 - CRUD: `GetLoggedWorkoutsAsync`, `SaveLoggedWorkoutAsync`, `DeleteLoggedWorkoutAsync`
+- `ExportJsonAsync()` – returns the full `WorkoutStore` serialised as a JSON string (used by the export button in `Workouts.razor`)
 - Obsolete: `GetAllAsync` / `SaveAsync` / `DeleteAsync` (wrap `Workout`; do not use in new code)
 
 ### WgerService
@@ -107,6 +122,12 @@ Key member:
 - `SearchExercisesAsync(string term)` – returns `List<WgerExerciseInfo>` (up to 8 results) for the given search term (min 2 chars). Each result has `Name` and `Category`. Category names from the API are normalised to canonical English muscle group names (`Core`, `Arms`, `Back`, `Calves`, `Chest`, `Legs`, `Shoulders`) regardless of the browser locale.
 
 ### Shared Components (`Shared/`)
+
+#### `PwaInstallBanner`
+Shown once per session at the bottom of every page (rendered from `MainLayout`). Detects install eligibility via `gymTracker` JS helpers and shows an appropriate prompt:
+- **Chrome/Edge/Samsung**: shows "Install app" button that triggers `showInstallPrompt()`.
+- **iOS Safari**: shows manual "tap Share → Add to Home Screen" instructions.
+- Hidden if the app is already running in standalone mode, or if the user dismissed it this session (`sessionStorage` key `pwa_banner_dismissed`).
 
 #### `ExerciseAutocomplete`
 Wraps a text `<input>` with a debounced dropdown powered by `WgerService`. Used in `TemplateEdit` for the exercise name field.
@@ -136,7 +157,7 @@ Front view shows: Chest, Core, Shoulders, Biceps, Forearms, Quads, Calves. Back 
 `WgerService` maps the broad wger "Arms" category → `Biceps` and "Legs" → `Quads` (all language variants). `Triceps`, `Hamstrings`, `Traps`, and `Lower Back` have no wger equivalent and must be set manually on the diagram or via the pill buttons.
 
 ### JS interop (`window.gymTracker`)
-Defined in `wwwroot/js/fileStorage.js`. Called exclusively by `WorkoutService` via `IJSRuntime`:
+Defined in `wwwroot/js/fileStorage.js`. Called via `IJSRuntime`:
 | JS function | Returns | Purpose |
 |-------------|---------|---------|
 | `gymTracker.isSupported()` | `bool` | `'showSaveFilePicker' in window` |
@@ -145,13 +166,44 @@ Defined in `wwwroot/js/fileStorage.js`. Called exclusively by `WorkoutService` v
 | `gymTracker.readFile()` | `string?` | Reads JSON text from the picked file |
 | `gymTracker.writeFile(json)` | `bool` | Writes JSON text to the picked file |
 | `gymTracker.clearHandle()` | – | Deletes stored handle from IndexedDB |
+| `gymTracker.playChime()` | – | Plays a short 3-tone chime (rest timer end) |
+| `gymTracker.downloadJson(content, filename)` | – | Triggers a browser download of `content` as a `.json` file |
+| `gymTracker.isInStandaloneMode()` | `bool` | `true` if the app is running as an installed PWA |
+| `gymTracker.isIos()` | `bool` | `true` on iPhone/iPad (no `beforeinstallprompt` support) |
+| `gymTracker.isInstallable()` | `bool` | `true` if a `beforeinstallprompt` event was captured and app is not yet installed |
+| `gymTracker.showInstallPrompt()` | `string` | Triggers the browser install prompt; returns `'accepted'` or `'dismissed'` |
 
 ### Template → Workout flow
 1. `/workouts/log` shows a **template picker** (card grid). Picking a template or using the deep-link route calls `ApplyTemplate`.
 2. `ApplyTemplate` checks `Exercise.LastSets`: if non-empty it clones those exact sets as the starting point; otherwise it generates `Exercise.Sets` sets pre-filled with the first-use defaults (`Reps`, `WeightKg`, `DurationSeconds`). It also sets `_workout.TemplateId` and builds `_templateExByName` (a `Dictionary<string, Exercise>`) for O(1) last-time hint lookups.
-3. While logging, each exercise row shows a **last-time hint bar** (date · set summary · 🏆 if PO · note) sourced from `_templateExByName`. Below the sets section are a **Progressive overload** pill toggle and a **Notes** textarea, both bound to the `LoggedExercise`.
-4. On **Save**, `WriteBackToTemplateAsync` is called: it writes `LastSets`, `LastNotes`, `LastProgressiveOverload`, `LastPerformed`, and the updated `Sets` count back into the matching `Exercise` in the template and calls `SaveTemplateAsync`. This means the template always reflects the last real session.
-5. **`TemplateEdit`** displays a read-only last-session hint below the defaults row for any exercise that has been logged at least once.
+3. A **stopwatch** starts automatically when logging begins (template selected, blank workout started, or deep-link navigation). Elapsed time is displayed as a `MM:SS` chip in the page header. On **Save**, the elapsed time is stored as `LoggedWorkout.DurationMinutes` (rounded, minimum 1 min). Editing an existing workout does **not** start the stopwatch.
+4. While logging, each exercise row shows a **last-time hint bar** (date · set summary · if PO · note) sourced from `_templateExByName`. Below the sets section are a **Progressive overload** pill toggle and a **Notes** textarea, both bound to the `LoggedExercise`.
+5. On **Save**, `WriteBackToTemplateAsync` is called: it writes `LastSets`, `LastNotes`, `LastProgressiveOverload`, `LastPerformed`, and the updated `Sets` count back into the matching `Exercise` in the template and calls `SaveTemplateAsync`. This means the template always reflects the last real session.
+6. **`TemplateEdit`** displays a read-only last-session hint below the defaults row for any exercise that has been logged at least once.
+
+### Weight unit preference
+All weights are **stored as kg** in the JSON (in `ExerciseSet.WeightKg` and `Exercise.WeightKg`). The unit is display-only and controlled by the `localStorage` key `gym_tracker_weight_unit` (value `"kg"` or `"lbs"`). The conversion factor is `lbs = kg × 2.20462`.
+
+All distances are **stored as km** in the JSON (in `ExerciseSet.DistanceKm` and `Exercise.DistanceKm`). The unit is display-only and controlled by the `localStorage` key `gym_tracker_distance_unit` (value `"km"` or `"mi"`). The conversion factor is `mi = km × 0.621371`. Pace (stored as min/km) converts to min/mi via `min/mi = min/km × 1.60934`.
+
+Every component that shows or accepts weight values must:
+1. Inject `@inject IJSRuntime JS` and add a `private bool _isMetric = true;` field.
+2. Load the preference in `OnInitializedAsync`: `_isMetric = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit") != "lbs";`
+3. Expose `private string WeightUnit => _isMetric ? "kg" : "lbs";`
+4. Use `WeightForDisplay(double? kg)` to convert kg → display value for rendering, and `WeightFromInput(double? display)` to convert back on `@onchange`.
+5. Because `@bind` cannot transform values, weight inputs must use `value="@WeightForDisplay(set.WeightKg)"` + `@onchange="e => set.WeightKg = WeightFromInput(ParseDouble(e.Value))"` instead of `@bind`.
+6. Any `FormatWeight`/`FormatVolume`/`FormatLastSets`/`WeightDeltaText` helpers that include a unit suffix must be **instance methods** (not `static`) so they can access `_isMetric`/`WeightUnit`.
+
+The same pattern applies to distance: add `_isKm`, `DistanceUnit`, `DistForDisplay`, `DistFromInput`, and use `value`/`@onchange` on distance inputs. Any `FormatDistance`/`FormatPace`/`DistanceDeltaText`/`PaceDeltaText` helpers must also be instance methods.
+
+Components currently implementing this pattern: `LogWorkout.razor`, `TemplateEdit.razor`, `Progress.razor`, `Settings.razor`.
+
+### User preferences (localStorage)
+| Key | Type | Purpose |
+|-----|------|---------|
+| `gym_tracker_rest_default` | `int` (seconds) | Default rest timer preset; loaded in `LogWorkout.OnInitializedAsync` |
+| `gym_tracker_weight_unit` | `"kg"` \| `"lbs"` | Display unit for all weight values; loaded in `OnInitializedAsync` of every weight-showing page |
+| `gym_tracker_distance_unit` | `"km"` \| `"mi"` | Display unit for all cardio distance and pace values; loaded in `OnInitializedAsync` of every distance-showing page |
 
 ### Razor / Blazor pitfalls
 - **`@{ }` code blocks** inside nested `@else if { }` markup blocks cause `RZ1010` parse errors. Use C# properties or helper methods instead of inline variable declarations.
@@ -175,16 +227,20 @@ Defined in `wwwroot/js/fileStorage.js`. Called exclusively by `WorkoutService` v
 | `Gym-tracker/Models/WorkoutStore.cs` | Root serialised object (stored as JSON) |
 | `Gym-tracker/Models/Exercise.cs` | Template exercise + `MuscleGroup` + first-use defaults + last-session data |
 | `Gym-tracker/Models/LoggedExercise.cs` | Per-session exercise data including Notes and ProgressiveOverload |
-| `Gym-tracker/Models/LoggedWorkout.cs` | Completed session; carries `TemplateId?` for write-back |
+| `Gym-tracker/Models/LoggedWorkout.cs` | Completed session; carries `TemplateId?` for write-back and `DurationMinutes?` recorded by stopwatch |
 | `Gym-tracker/Pages/Home.razor` | Dashboard; Templates & Logged Workouts cards are live, Progress is placeholder |
-| `Gym-tracker/Pages/LogWorkout.razor` | Template picker, set-level logging, last-time hints, PO toggle, write-back on save |
-| `Gym-tracker/Pages/LogWorkout.razor.css` | Scoped styles: template picker, view toggle, stepper, last-time bar, PO toggle, notes (incl. `::placeholder` fix) |
-| `Gym-tracker/Pages/TemplateEdit.razor` | Create/edit template with per-exercise defaults (Sets, Reps, Weight/Duration), `MuscleBodyDiagram`, `ExerciseAutocomplete`, and last-session read-only hint |
+| `Gym-tracker/Pages/LogWorkout.razor` | Template picker, set-level logging, stopwatch timer, last-time hints, PO toggle, write-back on save |
+| `Gym-tracker/Pages/LogWorkout.razor.css` | Scoped styles: template picker, view toggle, stepper, last-time bar, PO toggle, notes, stopwatch chip (incl. `::placeholder` fix) |
+| `Gym-tracker/Pages/TemplateEdit.razor` | Create/edit template with per-exercise defaults (Sets, Reps, Weight/Duration), `MuscleBodyDiagram`, `ExerciseAutocomplete`, last-session read-only hint, and drag-to-reorder exercises |
 | `Gym-tracker/Pages/TemplateEdit.razor.css` | Scoped styles: exercise-defaults row, last-time hint |
-| `Gym-tracker/Pages/Templates.razor` | List templates; has ▶ Start button that navigates to `/workouts/log/{templateId}` |
-| `Gym-tracker/Pages/Workouts.razor` | List / delete logged workouts; **calendar is the default view** (`_viewMode = "calendar"`); list view available via toggle |
+| `Gym-tracker/Pages/Templates.razor` | List templates; has ▶ Start, ✎ Edit, ⧉ Duplicate, and 🗑 Delete buttons per card |
+| `Gym-tracker/Pages/Workouts.razor` | List / delete logged workouts; shows duration; **calendar is the default view** (`_viewMode = "calendar"`); has Export JSON button |
 | `Gym-tracker/Pages/Workouts.razor.css` | Scoped styles: view toggle, calendar grid, day cells, selected-date detail panel |
+| `Gym-tracker/Pages/Settings.razor` | Storage management (mode, change file, export, import), PWA install prompt, default rest timer preference, **weight unit toggle (kg/lbs)**, clear all data |
+| `Gym-tracker/Pages/Settings.razor.css` | Scoped styles: section cards, setting rows, preset pills, import confirm, danger zone |
 | `Gym-tracker/Shared/ExerciseAutocomplete.razor` | Debounced exercise name input with wger-powered dropdown; `OnExerciseSelected` callback carries `WgerExerciseInfo` |
 | `Gym-tracker/Shared/ExerciseAutocomplete.razor.css` | Scoped styles: dropdown, active item highlight |
 | `Gym-tracker/Shared/MuscleBodyDiagram.razor` | Interactive front/back SVG body map; emits muscle group name via `MuscleGroupChanged` |
 | `Gym-tracker/Shared/MuscleBodyDiagram.razor.css` | Scoped styles: diagram layout, region hover/active states, label |
+| `Gym-tracker/Shared/PwaInstallBanner.razor` | PWA install prompt shown once per session; Chrome/Edge shows "Install app" button; iOS shows manual Share→Add instructions |
+| `Gym-tracker/Shared/PwaInstallBanner.razor.css` | Scoped styles: fixed bottom banner with purple top border |

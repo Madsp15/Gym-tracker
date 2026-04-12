@@ -12,5 +12,8 @@ public class ExerciseSet
 
     // Timed field
     public int? DurationSeconds { get; set; }
+
+    // Cardio field
+    public double? DistanceKm { get; set; }
 }
 

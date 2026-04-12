@@ -38,6 +38,12 @@
     color: #D0DCF1 !important;
 }
 
+/* Narrow inputs for the mm / ss pair */
+.exercise-defaults__input--time {
+    max-width: 3.5rem;
+    text-align: center;
+}
+
 .exercise-defaults__input:focus {
     background: #192033 !important;
     color: #D0DCF1 !important;

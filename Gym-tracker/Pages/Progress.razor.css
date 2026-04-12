@@ -143,6 +143,19 @@
     background: #2a6b50;
 }
 
+.progress-card__type-badge--cardio {
+    background: #1a6b55;
+}
+
+/* Total distance line below the Cardio metric block */
+.progress-card__total-distance {
+    font-size: 0.72rem;
+    color: #7d90b5;
+    margin-top: -0.2rem;
+    margin-bottom: 0.4rem;
+    padding-left: 0.1rem;
+}
+
 /* ── Meta row ──────────────────────────────────────────── */
 
 .progress-card__meta-row {
@@ -265,29 +278,10 @@
     text-align: right;
 }
 
-/* ── No-data state ─────────────────────────────────────── */
+/* ── Pace bar fill (teal) ───────────────────────────────── */
 
-.progress-card__no-data {
-    font-size: 0.8rem;
-    color: #4a5a78;
-    font-style: italic;
-    margin: 0.4rem 0 0.5rem;
-}
-
-/* ── Volume footer ─────────────────────────────────────── */
-
-.progress-card__footer {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 0.5rem;
-    min-height: 1.6rem;
-}
-
-.progress-card__volume {
-    font-size: 0.75rem;
-    color: #7d90b5;
-    flex: 1;
+.progress-bar-fill--pace {
+    background: linear-gradient(90deg, #1a8c6e, #0d6e55);
 }
 
 /* ── Chart toggle button ───────────────────────────────── */
@@ -335,6 +329,15 @@
     border-top: 1px solid #283a5a;
 }
 
+/* ── Chart subtitle (pace note) ────────────────────────── */
+
+.progress-chart__subtitle {
+    font-size: 0.68rem;
+    color: #4a5a78;
+    font-style: italic;
+    margin-bottom: 0.3rem;
+}
+
 /* ── SVG chart elements ────────────────────────────────── */
 
 .chart-grid {
@@ -353,6 +356,11 @@
     stroke: none;
 }
 
+.chart-area--pace {
+    fill: rgba(26, 140, 110, 0.08);
+    stroke: none;
+}
+
 .chart-line {
     fill: none;
     stroke: #6A5BC2;
@@ -361,8 +369,22 @@
     stroke-linejoin: round;
 }
 
+.chart-line--pace {
+    fill: none;
+    stroke: #1a8c6e;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
 .chart-dot {
     fill: #6A5BC2;
+    stroke: #192033;
+    stroke-width: 2;
+}
+
+.chart-dot--pace {
+    fill: #1a8c6e;
     stroke: #192033;
     stroke-width: 2;
 }
@@ -375,9 +397,86 @@
 
 /* ── Responsive: 2-column summary on narrow screens ───── */
 
-@media (max-width: 420px) {
+@media (max-width: 480px) {
     .progress-summary {
         grid-template-columns: repeat(2, 1fr);
     }
 }
 
+/* ── Estimated 1RM line ─────────────────────────────────── */
+
+.progress-card__1rm {
+    font-size: 0.7rem;
+    color: #7d90b5;
+    margin-top: 0.3rem;
+}
+
+.progress-card__1rm strong {
+    color: #a09ad4;
+}
+
+/* ── Highlights row ─────────────────────────────────────── */
+
+.progress-highlights {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    max-width: 640px;
+    margin: 0 auto 1rem;
+    padding: 0 1rem;
+}
+
+.progress-highlights__chip {
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 0.65rem;
+    padding: 0.55rem 0.9rem;
+    text-align: center;
+}
+
+@media (max-width: 520px) {
+    .progress-highlights {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.progress-highlights__value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #D0DCF1;
+    line-height: 1.2;
+}
+
+.progress-highlights__unit {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: #7d90b5;
+}
+
+.progress-highlights__label {
+    font-size: 0.63rem;
+    color: #7d90b5;
+    margin-top: 0.2rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* ── Extra stats chips (per exercise card) ──────────────── */
+
+.progress-card__extra-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-bottom: 0.45rem;
+}
+
+.progress-card__stat-chip {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #7d90b5;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 1rem;
+    padding: 0.15rem 0.6rem;
+    white-space: nowrap;
+}

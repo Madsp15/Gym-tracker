@@ -3,7 +3,8 @@ namespace Gym_tracker.Models;
 public enum ExerciseType
 {
     RepsWeight,
-    Timed
+    Timed,
+    Cardio
 }
 
 public class Exercise
@@ -21,6 +22,7 @@ public class Exercise
     public int? Reps { get; set; }
     public double? WeightKg { get; set; }
     public int? DurationSeconds { get; set; }
+    public double? DistanceKm { get; set; }
 
     // ── Last-session data (written back after each logged workout) ──
     public List<ExerciseSet> LastSets { get; set; } = new();

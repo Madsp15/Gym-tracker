@@ -3,6 +3,8 @@
 @page "/workouts/{Id:guid}"
 @inject WorkoutService WorkoutService
 @inject NavigationManager Nav
+@inject IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>@(_isNew ? "Log Workout" : "Edit Logged Workout") – Gym Tracker</PageTitle>
 
@@ -40,6 +42,10 @@ else
     <div class="page-header">
         <button class="btn btn-sm btn-ghost" @onclick="GoBack">← Back</button>
         <h2 class="page-header__title">@(_isNew ? "Log Workout" : "Edit Logged Workout")</h2>
+        @if (_isNew && _elapsed > TimeSpan.Zero)
+        {
+            <span class="workout-stopwatch" title="Time elapsed">⏱ @ElapsedText</span>
+        }
     </div>
 
     <div class="workout-form">
@@ -91,12 +97,13 @@ else
                 }
             </p>
 
-            <div class="exercise-row @(StepExercise.Type == ExerciseType.Timed ? "exercise-row--timed" : "")">
+            <div class="exercise-row @ExRowClass(StepExercise.Type)">
                 <div class="exercise-row__header">
                     <span class="exercise-row__num">@(_currentExerciseIndex + 1)</span>
                      <ExerciseAutocomplete CssClass="exercise-row__name"
                                            Placeholder="Exercise name"
-                                           @bind-Value="StepExercise.Name" />
+                                           @bind-Value="StepExercise.Name"
+                                           OnExerciseSelected="info => ApplyWgerType(StepExercise, info)" />
                     <button class="btn btn-sm btn-ghost exercise-row__remove" title="Remove"
                             @onclick="() => RemoveExercise(_currentExerciseIndex)">✕</button>
                 </div>
@@ -105,6 +112,8 @@ else
                             @onclick="() => SetType(StepExercise, ExerciseType.RepsWeight)">Reps + Weight</button>
                     <button class="type-btn @(StepExercise.Type == ExerciseType.Timed ? "type-btn--active" : "")"
                             @onclick="() => SetType(StepExercise, ExerciseType.Timed)">Timed</button>
+                    <button class="type-btn @(StepExercise.Type == ExerciseType.Cardio ? "type-btn--active" : "")"
+                            @onclick="() => SetType(StepExercise, ExerciseType.Cardio)">Cardio</button>
                 </div>
 
                 @if (GetTemplateEx(StepExercise.Name) is { LastPerformed: not null } stepHint)
@@ -137,26 +146,65 @@ else
                                     <div class="input-group input-group-sm">
                                         <input type="number" min="0" step="0.5" class="form-control set-row__input"
                                                placeholder="Weight"
-                                               @bind="set.WeightKg"
-                                               @bind:culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                                        <span class="input-group-text set-row__unit">kg</span>
+                                               value="@WeightForDisplay(set.WeightKg)"
+                                               @onchange="e => set.WeightKg = WeightFromInput(ParseDouble(e.Value))" />
+                                        <span class="input-group-text set-row__unit">@WeightUnit</span>
+                                    </div>
+                                </div>
+                            }
+                            else if (StepExercise.Type == ExerciseType.Timed)
+                            {
+                                <div class="set-row__fields">
+                                    <div class="input-group input-group-sm">
+                                        <input type="number" min="0" class="form-control set-row__input set-row__input--time"
+                                               placeholder="0" value="@GetMins(set.DurationSeconds)"
+                                               @onchange="e => SetDuration(set, ParseInt(e.Value), GetSecs(set.DurationSeconds))" />
+                                        <span class="input-group-text set-row__unit">m</span>
+                                        <input type="number" min="0" max="59" class="form-control set-row__input set-row__input--time"
+                                               placeholder="0" value="@GetSecs(set.DurationSeconds)"
+                                               @onchange="e => SetDuration(set, GetMins(set.DurationSeconds), ParseInt(e.Value))" />
+                                        <span class="input-group-text set-row__unit">s</span>
                                     </div>
                                 </div>
                             }
                             else
                             {
-                                <div class="set-row__fields">
-                                    <div class="input-group input-group-sm">
-                                        <input type="number" min="1" class="form-control set-row__input"
-                                               placeholder="Duration" value="@set.DurationSeconds"
-                                               @onchange="e => set.DurationSeconds = ParseInt(e.Value)" />
-                                        <span class="input-group-text set-row__unit">s</span>
+                                <div class="set-row__fields set-row__fields--cardio">
+                                    <div class="set-row__cardio-inputs">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" min="0" step="0.01" class="form-control set-row__input"
+                                                   placeholder="0"
+                                                   value="@DistForDisplay(set.DistanceKm)"
+                                                   @onchange="e => set.DistanceKm = DistFromInput(ParseDouble(e.Value))" />
+                                            <span class="input-group-text set-row__unit">@DistanceUnit</span>
+                                        </div>
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" min="0" class="form-control set-row__input set-row__input--time"
+                                                   placeholder="0" value="@GetMins(set.DurationSeconds)"
+                                                   @onchange="e => SetDuration(set, ParseInt(e.Value), GetSecs(set.DurationSeconds))" />
+                                            <span class="input-group-text set-row__unit">m</span>
+                                            <input type="number" min="0" max="59" class="form-control set-row__input set-row__input--time"
+                                                   placeholder="0" value="@GetSecs(set.DurationSeconds)"
+                                                   @onchange="e => SetDuration(set, GetMins(set.DurationSeconds), ParseInt(e.Value))" />
+                                            <span class="input-group-text set-row__unit">s</span>
+                                        </div>
                                     </div>
+                                    @if (GetPace(set) != null)
+                                    {
+                                        <span class="set-row__pace">@GetPace(set)</span>
+                                    }
                                 </div>
                             }
                             <button class="btn btn-sm btn-ghost" @onclick="() => RemoveSet(StepExercise, sIdx)">✕</button>
                         </div>
                     }
+                    <div class="rest-timer-presets">
+                        <span class="rest-timer-presets__label">Rest:</span>
+                        <button class="rest-timer-presets__btn @(_defaultRestSeconds == 60  ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(60)">1m</button>
+                        <button class="rest-timer-presets__btn @(_defaultRestSeconds == 90  ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(90)">90s</button>
+                        <button class="rest-timer-presets__btn @(_defaultRestSeconds == 120 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(120)">2m</button>
+                        <button class="rest-timer-presets__btn @(_defaultRestSeconds == 180 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(180)">3m</button>
+                    </div>
                 </div>
 
                 <div class="exercise-footer">
@@ -172,7 +220,14 @@ else
 
             <div class="exercise-stepper__nav">
                 <button class="btn btn-ghost" @onclick="PrevExercise" disabled="@(_currentExerciseIndex == 0)">← Prev</button>
-                <button class="btn btn-ghost" @onclick="NextExercise" disabled="@(_currentExerciseIndex >= _workout.Exercises.Count - 1)">Next →</button>
+                @if (_currentExerciseIndex >= _workout.Exercises.Count - 1 && AllExercisesNamed)
+                {
+                    <button class="btn btn-accent exercise-stepper__finish" @onclick="Save">Finish</button>
+                }
+                else
+                {
+                    <button class="btn btn-ghost" @onclick="NextExercise" disabled="@(_currentExerciseIndex >= _workout.Exercises.Count - 1)">Next →</button>
+                }
             </div>
         }
         else
@@ -182,12 +237,13 @@ else
                 var idx = i;
                 var ex = _workout.Exercises[idx];
 
-                <div class="exercise-row @(ex.Type == ExerciseType.Timed ? "exercise-row--timed" : "")">
+                <div class="exercise-row @ExRowClass(ex.Type)">
                     <div class="exercise-row__header">
                         <span class="exercise-row__num">@(idx + 1)</span>
                         <ExerciseAutocomplete CssClass="exercise-row__name"
                                               Placeholder="Exercise name"
-                                              @bind-Value="ex.Name" />
+                                              @bind-Value="ex.Name"
+                                              OnExerciseSelected="info => ApplyWgerType(ex, info)" />
                         <button class="btn btn-sm btn-ghost exercise-row__remove" title="Remove"
                                 @onclick="() => RemoveExercise(idx)">✕</button>
                     </div>
@@ -196,6 +252,8 @@ else
                                 @onclick="() => SetType(ex, ExerciseType.RepsWeight)">Reps + Weight</button>
                         <button class="type-btn @(ex.Type == ExerciseType.Timed ? "type-btn--active" : "")"
                                 @onclick="() => SetType(ex, ExerciseType.Timed)">Timed</button>
+                        <button class="type-btn @(ex.Type == ExerciseType.Cardio ? "type-btn--active" : "")"
+                                @onclick="() => SetType(ex, ExerciseType.Cardio)">Cardio</button>
                     </div>
 
                     @if (GetTemplateEx(ex.Name) is { LastPerformed: not null } hint)
@@ -228,26 +286,65 @@ else
                                         <div class="input-group input-group-sm">
                                             <input type="number" min="0" step="0.5" class="form-control set-row__input"
                                                    placeholder="Weight"
-                                                   @bind="set.WeightKg"
-                                                   @bind:culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                                            <span class="input-group-text set-row__unit">kg</span>
+                                                   value="@WeightForDisplay(set.WeightKg)"
+                                                   @onchange="e => set.WeightKg = WeightFromInput(ParseDouble(e.Value))" />
+                                            <span class="input-group-text set-row__unit">@WeightUnit</span>
+                                        </div>
+                                    </div>
+                                }
+                                else if (ex.Type == ExerciseType.Timed)
+                                {
+                                    <div class="set-row__fields">
+                                        <div class="input-group input-group-sm">
+                                            <input type="number" min="0" class="form-control set-row__input set-row__input--time"
+                                                   placeholder="0" value="@GetMins(set.DurationSeconds)"
+                                                   @onchange="e => SetDuration(set, ParseInt(e.Value), GetSecs(set.DurationSeconds))" />
+                                            <span class="input-group-text set-row__unit">m</span>
+                                            <input type="number" min="0" max="59" class="form-control set-row__input set-row__input--time"
+                                                   placeholder="0" value="@GetSecs(set.DurationSeconds)"
+                                                   @onchange="e => SetDuration(set, GetMins(set.DurationSeconds), ParseInt(e.Value))" />
+                                            <span class="input-group-text set-row__unit">s</span>
                                         </div>
                                     </div>
                                 }
                                 else
                                 {
-                                    <div class="set-row__fields">
-                                        <div class="input-group input-group-sm">
-                                            <input type="number" min="1" class="form-control set-row__input"
-                                                   placeholder="Duration" value="@set.DurationSeconds"
-                                                   @onchange="e => set.DurationSeconds = ParseInt(e.Value)" />
-                                            <span class="input-group-text set-row__unit">s</span>
+                                    <div class="set-row__fields set-row__fields--cardio">
+                                        <div class="set-row__cardio-inputs">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" min="0" step="0.01" class="form-control set-row__input"
+                                                       placeholder="0"
+                                                       value="@DistForDisplay(set.DistanceKm)"
+                                                       @onchange="e => set.DistanceKm = DistFromInput(ParseDouble(e.Value))" />
+                                                <span class="input-group-text set-row__unit">@DistanceUnit</span>
+                                            </div>
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" min="0" class="form-control set-row__input set-row__input--time"
+                                                       placeholder="0" value="@GetMins(set.DurationSeconds)"
+                                                       @onchange="e => SetDuration(set, ParseInt(e.Value), GetSecs(set.DurationSeconds))" />
+                                                <span class="input-group-text set-row__unit">m</span>
+                                                <input type="number" min="0" max="59" class="form-control set-row__input set-row__input--time"
+                                                       placeholder="0" value="@GetSecs(set.DurationSeconds)"
+                                                       @onchange="e => SetDuration(set, GetMins(set.DurationSeconds), ParseInt(e.Value))" />
+                                                <span class="input-group-text set-row__unit">s</span>
+                                            </div>
                                         </div>
+                                        @if (GetPace(set) != null)
+                                        {
+                                            <span class="set-row__pace">@GetPace(set)</span>
+                                        }
                                     </div>
                                 }
                                 <button class="btn btn-sm btn-ghost" @onclick="() => RemoveSet(ex, sIdx)">✕</button>
                             </div>
                         }
+                        <div class="rest-timer-presets">
+                            <span class="rest-timer-presets__label">Rest:</span>
+                            <button class="rest-timer-presets__btn @(_defaultRestSeconds == 60  ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(60)">1m</button>
+                            <button class="rest-timer-presets__btn @(_defaultRestSeconds == 90  ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(90)">90s</button>
+                            <button class="rest-timer-presets__btn @(_defaultRestSeconds == 120 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(120)">2m</button>
+                            <button class="rest-timer-presets__btn @(_defaultRestSeconds == 180 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(180)">3m</button>
+                        </div>
                     </div>
 
                     <div class="exercise-footer">
@@ -271,6 +368,22 @@ else
             <button class="btn btn-accent btn-lg w-100" @onclick="Save">Save Logged Workout</button>
         </div>
     </div>
+
+    @if (_restActive)
+    {
+        <div class="rest-timer-bar">
+            <span class="rest-timer-bar__label">Rest</span>
+            <span class="rest-timer-bar__time @(_restSecondsLeft <= 10 ? "rest-timer-bar__time--urgent" : "")">
+                @FormatRestTime(_restSecondsLeft)
+            </span>
+            <div class="rest-timer-bar__track">
+                <div class="rest-timer-bar__fill"
+                     style="width: @((_restTotalSeconds > 0 ? (double)_restSecondsLeft / _restTotalSeconds * 100d : 0d).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))%">
+                </div>
+            </div>
+            <button class="rest-timer-bar__cancel" @onclick="CancelRest">✕</button>
+        </div>
+    }
 }
 
 @code {
@@ -291,14 +404,111 @@ else
     private bool _stepThrough = false;
     private int _currentExerciseIndex = 0;
 
+    // ── Stopwatch ─────────────────────────────────────────
+    private CancellationTokenSource? _stopwatchCts;
+    private DateTime _workoutStartedAt;
+    private TimeSpan _elapsed = TimeSpan.Zero;
+
+    // ── Default rest preset (from Settings) ───────────────
+    private int _defaultRestSeconds = 0;
+
+    // ── Weight unit (from Settings) ───────────────────────
+    private bool   _isMetric  = true;
+    private string WeightUnit => _isMetric ? "kg" : "lbs";
+
+    private string? WeightForDisplay(double? kg)
+    {
+        if (!kg.HasValue) return null;
+        var v = _isMetric ? kg.Value : Math.Round(kg.Value * 2.20462, 1);
+        return v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private double? WeightFromInput(double? display) =>
+        display.HasValue
+            ? (_isMetric ? display.Value : Math.Round(display.Value / 2.20462, 4))
+            : (double?)null;
+
+    // ── Distance unit (from Settings) ─────────────────────
+    private bool   _isKm        = true;
+    private string DistanceUnit => _isKm ? "km" : "mi";
+
+    private string? DistForDisplay(double? km)
+    {
+        if (!km.HasValue) return null;
+        var v = _isKm ? km.Value : Math.Round(km.Value * 0.621371, 3);
+        return v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private double? DistFromInput(double? display) =>
+        display.HasValue
+            ? (_isKm ? display.Value : Math.Round(display.Value / 0.621371, 6))
+            : (double?)null;
+
+    private string ElapsedText
+    {
+        get
+        {
+            if (_elapsed.TotalHours >= 1)
+                return $"{(int)_elapsed.TotalHours}:{_elapsed.Minutes:D2}:{_elapsed.Seconds:D2}";
+            return $"{_elapsed.Minutes:D2}:{_elapsed.Seconds:D2}";
+        }
+    }
+
+    private void StartStopwatch()
+    {
+        _workoutStartedAt = DateTime.UtcNow;
+        _elapsed          = TimeSpan.Zero;
+        _ = RunStopwatchAsync();
+    }
+
+    private async Task RunStopwatchAsync()
+    {
+        _stopwatchCts?.Cancel();
+        _stopwatchCts?.Dispose();
+        _stopwatchCts = new CancellationTokenSource();
+        var token = _stopwatchCts.Token;
+        try
+        {
+            while (!token.IsCancellationRequested)
+            {
+                await Task.Delay(1000, token);
+                _elapsed = DateTime.UtcNow - _workoutStartedAt;
+                StateHasChanged();
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception) { }
+    }
+
+    private void StopStopwatch()
+    {
+        _stopwatchCts?.Cancel();
+    }
+
     private LoggedExercise StepExercise => _workout.Exercises[_currentExerciseIndex];
     private Exercise? GetTemplateEx(string name) =>
         _templateExByName.TryGetValue(name, out var ex) ? ex : null;
+
+    private bool AllExercisesNamed =>
+        _workout.Exercises.Count > 0 &&
+        _workout.Exercises.All(e => !string.IsNullOrWhiteSpace(e.Name));
 
     protected override async Task OnInitializedAsync()
     {
         await WorkoutService.InitializeAsync();
         _templates = await WorkoutService.GetTemplatesAsync();
+
+        // Load default rest timer from Settings preference
+        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_rest_default");
+        if (int.TryParse(raw, out var secs)) _defaultRestSeconds = secs;
+
+        // Load weight unit preference
+        var unitRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
+        _isMetric = unitRaw != "lbs";
+
+        // Load distance unit preference
+        var distRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
+        _isKm = distRaw != "mi";
 
         // Apply pre-filled date from calendar (only for new workouts)
         if (!Id.HasValue && DateParam is not null
@@ -330,10 +540,12 @@ else
                 _stepThrough = template.Exercises.Count > 1;
             }
             _step = LogStep.Logging;
+            StartStopwatch();
         }
         else
         {
             _step = _templates.Count > 0 ? LogStep.PickTemplate : LogStep.Logging;
+            if (_step == LogStep.Logging) StartStopwatch();
         }
     }
 
@@ -360,14 +572,16 @@ else
                       {
                           Reps = s.Reps,
                           WeightKg = s.WeightKg,
-                          DurationSeconds = s.DurationSeconds
+                          DurationSeconds = s.DurationSeconds,
+                          DistanceKm = s.DistanceKm
                       }).ToList()
                     : Enumerable.Range(0, Math.Max(1, e.Sets))
                         .Select(_ => new ExerciseSet
                         {
                             Reps = e.Reps,
                             WeightKg = e.WeightKg,
-                            DurationSeconds = e.DurationSeconds
+                            DurationSeconds = e.DurationSeconds,
+                            DistanceKm = e.DistanceKm
                         }).ToList();
                 return new LoggedExercise { Name = e.Name, Type = e.Type, Sets = sets };
             })
@@ -380,6 +594,7 @@ else
         _stepThrough = template.Exercises.Count > 1;
         _currentExerciseIndex = 0;
         _step = LogStep.Logging;
+        StartStopwatch();
     }
 
     private void StartBlank()
@@ -388,12 +603,15 @@ else
         _templateExByName.Clear();
         _stepThrough = false;
         _step = LogStep.Logging;
+        StartStopwatch();
     }
 
     private void GoBack()
     {
         if (_isNew && _templates.Count > 0)
         {
+            StopStopwatch();
+            _elapsed = TimeSpan.Zero;
             _workout = new LoggedWorkout { Date = _defaultDate };
             _templateExByName.Clear();
             _stepThrough = false;
@@ -443,27 +661,146 @@ else
         ex.Type = type;
         foreach (var set in ex.Sets)
         {
-            if (type == ExerciseType.RepsWeight) set.DurationSeconds = null;
-            else { set.Reps = null; set.WeightKg = null; }
+            if (type == ExerciseType.RepsWeight) { set.DurationSeconds = null; set.DistanceKm = null; }
+            else if (type == ExerciseType.Timed) { set.Reps = null; set.WeightKg = null; set.DistanceKm = null; }
+            else /* Cardio */                    { set.Reps = null; set.WeightKg = null; }
         }
     }
 
     // ── Last-time helper ─────────────────────────────────
 
-    private static string FormatLastSets(Exercise tmplEx)
+    private string FormatLastSets(Exercise tmplEx)
     {
         if (tmplEx.LastSets.Count == 0) return "";
-        var n = tmplEx.LastSets.Count;
+        var n     = tmplEx.LastSets.Count;
         var first = tmplEx.LastSets[0];
         if (tmplEx.Type == ExerciseType.RepsWeight)
         {
             var reps = first.Reps?.ToString() ?? "?";
-            var wt = first.WeightKg.HasValue
-                ? $" @ {first.WeightKg.Value.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)} kg"
-                : "";
+            string wt = "";
+            if (first.WeightKg.HasValue)
+            {
+                var w = _isMetric ? first.WeightKg.Value : Math.Round(first.WeightKg.Value * 2.20462, 1);
+                wt = $" @ {w.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)} {WeightUnit}";
+            }
             return $"{n} × {reps} reps{wt}";
         }
-        return $"{n} × {first.DurationSeconds?.ToString() ?? "?"} s";
+        if (tmplEx.Type == ExerciseType.Cardio)
+        {
+            var dist = first.DistanceKm.HasValue
+                ? DistForDisplay(first.DistanceKm)! + " " + DistanceUnit
+                : "";
+            var dur  = first.DurationSeconds.HasValue ? " · " + FormatMmSs(first.DurationSeconds.Value) : "";
+            return $"{n}× {dist}{dur}".Trim();
+        }
+        return $"{n} × {FormatMmSs(first.DurationSeconds ?? 0)}";
+    }
+
+    // ── Duration helpers (mm:ss) ──────────────────────────
+
+    private static int GetMins(int? totalSec) => (totalSec ?? 0) / 60;
+    private static int GetSecs(int? totalSec) => (totalSec ?? 0) % 60;
+
+    private static void SetDuration(ExerciseSet set, int? mins, int? secs) =>
+        set.DurationSeconds = (mins ?? 0) * 60 + (secs ?? 0);
+
+    private static string FormatMmSs(int seconds)
+    {
+        if (seconds <= 0) return "0s";
+        var mins = seconds / 60;
+        var secs = seconds % 60;
+        return mins > 0 ? $"{mins}:{secs:D2}" : $"{secs}s";
+    }
+
+    // ── Exercise row class helper ────────────────────────
+
+    private static string ExRowClass(ExerciseType t) => t switch
+    {
+        ExerciseType.Timed  => "exercise-row--timed",
+        ExerciseType.Cardio => "exercise-row--cardio",
+        _                   => ""
+    };
+
+    // ── wger auto-type ────────────────────────────────────
+
+    private void ApplyWgerType(LoggedExercise ex, WgerExerciseInfo info)
+    {
+        if (string.Equals(info.Category, "Cardio", StringComparison.OrdinalIgnoreCase))
+            SetType(ex, ExerciseType.Cardio);
+    }
+
+    // ── Rest timer ────────────────────────────────────────
+
+    private CancellationTokenSource? _restCts;
+    private int  _restSecondsLeft  = 0;
+    private int  _restTotalSeconds = 0;
+    private bool _restActive       = false;
+
+    private void StartRestFromButton(int seconds)
+    {
+        _defaultRestSeconds = seconds;
+        _ = JS.InvokeVoidAsync("localStorage.setItem", "gym_tracker_rest_default", seconds.ToString());
+        _ = StartRestAsync(seconds);
+    }
+
+    private async Task StartRestAsync(int seconds)
+    {
+        _restCts?.Cancel();
+        _restCts?.Dispose();
+        _restCts          = new CancellationTokenSource();
+        _restTotalSeconds = seconds;
+        _restSecondsLeft  = seconds;
+        _restActive       = true;
+        StateHasChanged();
+        var token = _restCts.Token;
+        try
+        {
+            while (_restSecondsLeft > 0 && !token.IsCancellationRequested)
+            {
+                await Task.Delay(1000, token);
+                _restSecondsLeft--;
+                StateHasChanged();
+            }
+            if (!token.IsCancellationRequested)
+            {
+                _restActive = false;
+                StateHasChanged();
+                await JS.InvokeVoidAsync("gymTracker.playChime");
+            }
+        }
+        catch (OperationCanceledException) { _restActive = false; }
+        catch (Exception)                  { _restActive = false; }
+    }
+
+    private void CancelRest()
+    {
+        _restCts?.Cancel();
+        _restActive = false;
+    }
+
+    private static string FormatRestTime(int s) => $"{s / 60}:{s % 60:D2}";
+
+    // ── Cardio pace ───────────────────────────────────────
+
+    private string? GetPace(ExerciseSet set)
+    {
+        if (set.DistanceKm is null or <= 0)      return null;
+        if (set.DurationSeconds is null or <= 0) return null;
+        var paceMinPerKm = set.DurationSeconds.Value / 60.0 / set.DistanceKm.Value;
+        // Convert to min/mi if needed (1 mi = 1.60934 km)
+        var paceDisplay = _isKm ? paceMinPerKm : paceMinPerKm * 1.60934;
+        var mins = (int)paceDisplay;
+        var secs = (int)Math.Round((paceDisplay - mins) * 60);
+        if (secs == 60) { mins++; secs = 0; }
+        return $"{mins}:{secs:D2} /{DistanceUnit}";
+    }
+
+    // ── IDisposable ───────────────────────────────────────
+
+    public void Dispose()
+    {
+        _restCts?.Cancel();
+        _stopwatchCts?.Cancel();
     }
 
     // ── Save / write-back ────────────────────────────────
@@ -473,6 +810,10 @@ else
         _error = null;
         if (string.IsNullOrWhiteSpace(_workout.Name)) { _error = "Please enter a workout name."; return; }
         if (_workout.Exercises.Count == 0) { _error = "Please add at least one exercise."; return; }
+
+        StopStopwatch();
+        if (_isNew && _elapsed > TimeSpan.Zero)
+            _workout.DurationMinutes = (int)Math.Max(1, Math.Round(_elapsed.TotalMinutes));
 
         await WorkoutService.SaveLoggedWorkoutAsync(_workout);
         await WriteBackToTemplateAsync();
@@ -493,7 +834,7 @@ else
             if (tmplEx is null) continue;
 
             tmplEx.LastSets = loggedEx.Sets
-                .Select(s => new ExerciseSet { Reps = s.Reps, WeightKg = s.WeightKg, DurationSeconds = s.DurationSeconds })
+                .Select(s => new ExerciseSet { Reps = s.Reps, WeightKg = s.WeightKg, DurationSeconds = s.DurationSeconds, DistanceKm = s.DistanceKm })
                 .ToList();
             tmplEx.LastNotes = loggedEx.Notes;
             tmplEx.LastProgressiveOverload = loggedEx.ProgressiveOverload;

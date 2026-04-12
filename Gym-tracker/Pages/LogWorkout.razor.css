@@ -163,6 +163,11 @@
     gap: 0.5rem;
 }
 
+.exercise-stepper__finish {
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
 /* ── Set-row unit badge ───────────────────────────────── */
 
 .set-row__unit {
@@ -172,6 +177,28 @@
     font-size: 0.75rem;
     font-weight: 600;
     padding: 0.2rem 0.45rem;
+}
+
+/* Narrow inputs for mm / ss */
+.set-row__input--time {
+    max-width: 3.5rem;
+    text-align: center;
+}
+
+/* Cardio fields: column layout — inputs row first, pace below */
+.set-row__fields--cardio {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    align-items: flex-start;
+}
+
+/* Inner row: km group + mm:ss group side-by-side, wraps if needed */
+.set-row__cardio-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
 }
 
 /* ── Last-time hint bar ──────────────────────────────── */
@@ -268,5 +295,163 @@
     color: #D0DCF1 !important;
     border-color: #6A5BC2 !important;
     box-shadow: none !important;
+}
+
+/* ── Rest timer presets (inside exercise card) ───────── */
+
+.rest-timer-presets {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    margin-top: 0.55rem;
+    flex-wrap: wrap;
+}
+
+.rest-timer-presets__label {
+    font-size: 0.72rem;
+    color: #7d90b5;
+    font-weight: 600;
+    margin-right: 0.1rem;
+    white-space: nowrap;
+}
+
+.rest-timer-presets__btn {
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 1rem;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    min-height: 32px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+.rest-timer-presets__btn:hover {
+    background: #192033;
+    color: #D0DCF1;
+    border-color: #6A5BC2;
+}
+
+.rest-timer-presets__btn--default {
+    border-color: #6A5BC2;
+    color: #c4b8ff;
+}
+
+/* ── Fixed rest timer bar ────────────────────────────── */
+
+.rest-timer-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 300;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: #192033;
+    border-top: 2px solid #283a5a;
+    padding: 0.6rem 1.25rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.rest-timer-bar__label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #7d90b5;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+}
+
+.rest-timer-bar__time {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #6A5BC2;
+    min-width: 3.2rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s ease;
+}
+
+.rest-timer-bar__time--urgent {
+    color: #ff6b6b;
+    animation: rest-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes rest-pulse {
+    0%, 100% { opacity: 1;    }
+    50%       { opacity: 0.5; }
+}
+
+.rest-timer-bar__track {
+    flex: 1;
+    height: 5px;
+    background: #283a5a;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.rest-timer-bar__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6A5BC2, #2F57A0);
+    border-radius: 3px;
+    transition: width 0.9s linear;
+}
+
+.rest-timer-bar__cancel {
+    background: transparent;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.12s, color 0.12s;
+}
+
+.rest-timer-bar__cancel:hover {
+    background: #283a5a;
+    color: #D0DCF1;
+}
+
+/* ── Cardio pace badge ────────────────────────────────── */
+
+.set-row__pace {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: #1a8c6e;
+    background: rgba(26, 140, 110, 0.13);
+    border-radius: 0.9rem;
+    padding: 0.12rem 0.55rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Workout stopwatch chip ───────────────────────────── */
+
+.workout-stopwatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 2rem;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #6A5BC2;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.03em;
+    margin-left: auto;
+    flex-shrink: 0;
 }
 

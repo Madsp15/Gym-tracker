@@ -1,0 +1,339 @@
+﻿@page "/settings"
+@inject WorkoutService WorkoutService
+@inject IJSRuntime JS
+
+<PageTitle>Settings – Gym Tracker</PageTitle>
+
+<div class="page-header">
+    <h2 class="page-header__title">Settings</h2>
+</div>
+
+@if (!WorkoutService.IsInitialized)
+{
+    <p class="text-muted ps-3">Loading…</p>
+}
+else
+{
+    <div class="settings-page">
+
+        <!-- ── Storage ─────────────────────────────────────── -->
+        <div class="settings-section">
+            <h3 class="settings-section__title">Storage</h3>
+
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Save location</span>
+                    <span class="settings-row__desc">@StorageModeText</span>
+                </div>
+                @if (WorkoutService.IsFileApiSupported && !WorkoutService.NeedsFileSetup)
+                {
+                    <button class="btn btn-sm btn-ghost" @onclick="ChangeFile">Change file…</button>
+                }
+                else if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsFileSetup)
+                {
+                    <button class="btn btn-sm btn-accent" @onclick="PickFile">Choose file…</button>
+                }
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Export backup</span>
+                    <span class="settings-row__desc">Download all your data as a JSON file</span>
+                </div>
+                <button class="btn btn-sm btn-ghost" @onclick="ExportJson">↓ Export</button>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Import backup</span>
+                    <span class="settings-row__desc">Restore from a previously exported JSON file</span>
+                </div>
+                <button class="btn btn-sm btn-ghost" @onclick="TriggerImport">↑ Import</button>
+            </div>
+
+            <!-- Hidden file picker – triggered by TriggerImport -->
+            <InputFile id="importFileInput" OnChange="HandleImport" accept=".json" style="display:none" />
+
+            @if (_importState == ImportState.Confirm && _importStore is not null)
+            {
+                <div class="settings-import-confirm">
+                    <p class="settings-import-confirm__summary">
+                        Found <strong>@_importStore.Templates.Count template@(_importStore.Templates.Count == 1 ? "" : "s")</strong>
+                        and <strong>@_importStore.LoggedWorkouts.Count workout@(_importStore.LoggedWorkouts.Count == 1 ? "" : "s")</strong>.
+                        This will <strong>replace</strong> your current data.
+                    </p>
+                    <div class="settings-import-confirm__actions">
+                        <button class="btn btn-sm btn-accent" @onclick="ConfirmImport">Replace &amp; restore</button>
+                        <button class="btn btn-sm btn-ghost"  @onclick="CancelImport">Cancel</button>
+                    </div>
+                </div>
+            }
+            else if (_importState == ImportState.Success)
+            {
+                <p class="settings-status settings-status--ok">✓ Data imported successfully.</p>
+            }
+            else if (_importState == ImportState.Error)
+            {
+                <p class="settings-status settings-status--err">✕ Could not read that file. Make sure it's a valid Gym Tracker backup.</p>
+            }
+        </div>
+
+        <!-- ── Install App ──────────────────────────────────── -->
+        @if (_showInstall || _isIos)
+        {
+            <div class="settings-section">
+                <h3 class="settings-section__title">Install App</h3>
+                @if (_isIos)
+                {
+                    <div class="settings-row">
+                        <div class="settings-row__info">
+                            <span class="settings-row__label">Add to Home Screen</span>
+                            <span class="settings-row__desc">
+                                In Safari tap <strong>Share</strong> then <strong>Add to Home Screen</strong>
+                            </span>
+                        </div>
+                        <span class="settings-row__hint">📲</span>
+                    </div>
+                }
+                else
+                {
+                    <div class="settings-row">
+                        <div class="settings-row__info">
+                            <span class="settings-row__label">Install Gym Tracker</span>
+                            <span class="settings-row__desc">Add to your home screen for quick offline access</span>
+                        </div>
+                        <button class="btn btn-sm btn-accent" @onclick="InstallPwa">Install app</button>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- ── Preferences ──────────────────────────────────── -->
+        <div class="settings-section">
+            <h3 class="settings-section__title">Preferences</h3>
+
+            <div class="settings-row settings-row--column">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Default rest timer</span>
+                    <span class="settings-row__desc">Pre-highlighted when you log a workout</span>
+                </div>
+                <div class="settings-presets">
+                    <button class="settings-preset-btn @(_defaultRestSeconds == 0   ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(0)">Off</button>
+                    <button class="settings-preset-btn @(_defaultRestSeconds == 30  ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(30)">30s</button>
+                    <button class="settings-preset-btn @(_defaultRestSeconds == 60  ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(60)">1m</button>
+                    <button class="settings-preset-btn @(_defaultRestSeconds == 90  ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(90)">90s</button>
+                    <button class="settings-preset-btn @(_defaultRestSeconds == 120 ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(120)">2m</button>
+                    <button class="settings-preset-btn @(_defaultRestSeconds == 180 ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(180)">3m</button>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Weight unit</span>
+                    <span class="settings-row__desc">Applied to all weight inputs and progress stats</span>
+                </div>
+                <div class="settings-presets">
+                    <button class="settings-preset-btn @(_weightUnit == "kg"  ? "settings-preset-btn--active" : "")"
+                            @onclick='() => SetWeightUnit("kg")'>kg</button>
+                    <button class="settings-preset-btn @(_weightUnit == "lbs" ? "settings-preset-btn--active" : "")"
+                            @onclick='() => SetWeightUnit("lbs")'>lbs</button>
+                </div>
+            </div>
+
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Distance unit</span>
+                    <span class="settings-row__desc">Applied to all cardio distance inputs, pace, and progress stats</span>
+                </div>
+                <div class="settings-presets">
+                    <button class="settings-preset-btn @(_distanceUnit == "km" ? "settings-preset-btn--active" : "")"
+                            @onclick='() => SetDistanceUnit("km")'>km</button>
+                    <button class="settings-preset-btn @(_distanceUnit == "mi" ? "settings-preset-btn--active" : "")"
+                            @onclick='() => SetDistanceUnit("mi")'>mi</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Danger Zone ──────────────────────────────────── -->
+        <div class="settings-section settings-section--danger">
+            <h3 class="settings-section__title">Danger Zone</h3>
+
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Clear all data</span>
+                    <span class="settings-row__desc">Permanently delete all templates and logged workouts</span>
+                </div>
+                @if (!_confirmClear)
+                {
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => _confirmClear = true">Clear all</button>
+                }
+                else
+                {
+                    <div class="settings-danger-confirm">
+                        <span class="settings-danger-confirm__text">Are you sure?</span>
+                        <button class="btn btn-sm btn-danger" @onclick="ClearAll">Yes, delete</button>
+                        <button class="btn btn-sm btn-ghost"  @onclick="() => _confirmClear = false">Cancel</button>
+                    </div>
+                }
+            </div>
+
+            @if (_clearSuccess)
+            {
+                <p class="settings-status settings-status--ok">✓ All data cleared.</p>
+            }
+        </div>
+
+    </div>
+}
+
+@code {
+    private enum ImportState { None, Confirm, Success, Error }
+
+    private int          _defaultRestSeconds = 0;
+    private bool         _confirmClear       = false;
+    private bool         _clearSuccess       = false;
+    private bool         _showInstall        = false;
+    private bool         _isIos              = false;
+    private ImportState  _importState        = ImportState.None;
+    private WorkoutStore? _importStore;
+    private string?      _importJson;
+    private string        _weightUnit         = "kg";
+    private string        _distanceUnit       = "km";
+
+    private string StorageModeText =>
+        WorkoutService.IsFileApiSupported && !WorkoutService.NeedsFileSetup
+            ? "Saving to file" : "Using browser storage";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Load persisted rest-timer default
+        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_rest_default");
+        if (int.TryParse(raw, out var secs)) _defaultRestSeconds = secs;
+
+        // Load persisted weight unit
+        var weightUnit = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
+        if (!string.IsNullOrEmpty(weightUnit)) _weightUnit = weightUnit;
+
+        // Load persisted distance unit
+        var distUnit = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
+        if (!string.IsNullOrEmpty(distUnit)) _distanceUnit = distUnit;
+
+        // Check PWA installability
+        var isStandalone = await JS.InvokeAsync<bool>("gymTracker.isInStandaloneMode");
+        if (!isStandalone)
+        {
+            _isIos = await JS.InvokeAsync<bool>("gymTracker.isIos");
+            if (!_isIos)
+                _showInstall = await JS.InvokeAsync<bool>("gymTracker.isInstallable");
+        }
+
+        StateHasChanged();
+    }
+
+    // ── Storage ───────────────────────────────────────────────────────
+
+    private async Task PickFile()
+    {
+        var picked = await WorkoutService.PickFileAsync();
+        if (picked) StateHasChanged();
+    }
+
+    private async Task ChangeFile()
+    {
+        await WorkoutService.ClearFileHandleAsync();
+        StateHasChanged();
+    }
+
+    private async Task ExportJson()
+    {
+        var json     = await WorkoutService.ExportJsonAsync();
+        var filename = $"gym-tracker-{DateTime.Today:yyyy-MM-dd}.json";
+        await JS.InvokeVoidAsync("gymTracker.downloadJson", json, filename);
+    }
+
+    private async Task TriggerImport()
+    {
+        _importState = ImportState.None;
+        _importStore = null;
+        _importJson  = null;
+        await JS.InvokeVoidAsync("gymTracker.clickById", "importFileInput");
+    }
+
+    private async Task HandleImport(InputFileChangeEventArgs e)
+    {
+        _importState = ImportState.None;
+        try
+        {
+            using var stream = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var reader = new System.IO.StreamReader(stream);
+            _importJson = await reader.ReadToEndAsync();
+            var opts  = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var store = System.Text.Json.JsonSerializer.Deserialize<WorkoutStore>(_importJson, opts);
+            if (store is null) { _importState = ImportState.Error; }
+            else               { _importStore = store; _importState = ImportState.Confirm; }
+        }
+        catch { _importState = ImportState.Error; }
+        StateHasChanged();
+    }
+
+    private async Task ConfirmImport()
+    {
+        if (_importJson is null) return;
+        await WorkoutService.ImportAsync(_importJson);
+        _importState = ImportState.Success;
+        _importStore = null;
+        _importJson  = null;
+    }
+
+    private void CancelImport()
+    {
+        _importState = ImportState.None;
+        _importStore = null;
+        _importJson  = null;
+    }
+
+    // ── Install ───────────────────────────────────────────────────────
+
+    private async Task InstallPwa()
+    {
+        await JS.InvokeAsync<string>("gymTracker.showInstallPrompt");
+        _showInstall = false;
+    }
+
+    // ── Preferences ───────────────────────────────────────────────────
+
+    private async Task SetDefaultRest(int seconds)
+    {
+        _defaultRestSeconds = seconds;
+        await JS.InvokeVoidAsync("localStorage.setItem", "gym_tracker_rest_default", seconds.ToString());
+    }
+
+    private async Task SetWeightUnit(string unit)
+    {
+        _weightUnit = unit;
+        await JS.InvokeVoidAsync("localStorage.setItem", "gym_tracker_weight_unit", unit);
+    }
+
+    private async Task SetDistanceUnit(string unit)
+    {
+        _distanceUnit = unit;
+        await JS.InvokeVoidAsync("localStorage.setItem", "gym_tracker_distance_unit", unit);
+    }
+
+    // ── Danger Zone ───────────────────────────────────────────────────
+
+    private async Task ClearAll()
+    {
+        await WorkoutService.ImportAsync("{}");
+        _confirmClear = false;
+        _clearSuccess = true;
+    }
+}
+

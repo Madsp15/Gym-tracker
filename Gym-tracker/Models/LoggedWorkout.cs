@@ -12,5 +12,7 @@ public class LoggedWorkout
     public List<LoggedExercise> Exercises { get; set; } = new();
     /// <summary>Set when this workout was logged from a template; enables write-back on save.</summary>
     public Guid? TemplateId { get; set; }
+    /// <summary>Total session duration in minutes, recorded by the stopwatch while logging.</summary>
+    public int? DurationMinutes { get; set; }
 }
 

@@ -2,6 +2,7 @@
 @page "/templates/{Id:guid}"
 @inject WorkoutService WorkoutService
 @inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <PageTitle>@(_isNew ? "New Template" : "Edit Template") – Gym Tracker</PageTitle>
 
@@ -71,7 +72,7 @@
                         <span class="exercise-row__summary-tag">@ex.MuscleGroup</span>
                     }
                     <span class="exercise-row__summary-tag exercise-row__summary-tag--type">
-                        @(ex.Type == ExerciseType.Timed ? "Timed" : "Reps")
+                        @(ex.Type == ExerciseType.Timed ? "Timed" : ex.Type == ExerciseType.Cardio ? "Cardio" : "Reps")
                     </span>
                 }
                 <button class="btn btn-sm btn-ghost exercise-row__chevron"
@@ -94,6 +95,10 @@
                     <button class="type-btn @(ex.Type == ExerciseType.Timed ? "type-btn--active" : "")"
                             @onclick="() => SetType(ex, ExerciseType.Timed)">
                         Timed
+                    </button>
+                    <button class="type-btn @(ex.Type == ExerciseType.Cardio ? "type-btn--active" : "")"
+                            @onclick="() => SetType(ex, ExerciseType.Cardio)">
+                        Cardio
                     </button>
                 </div>
 
@@ -137,21 +142,59 @@
                                 <input type="number" min="0" step="0.5"
                                        class="form-control exercise-defaults__input"
                                        placeholder="0"
-                                       @bind="ex.WeightKg"
-                                       @bind:culture="@System.Globalization.CultureInfo.InvariantCulture" />
-                                <span class="input-group-text exercise-defaults__unit">kg</span>
+                                       value="@WeightForDisplay(ex.WeightKg)"
+                                       @onchange="e => ex.WeightKg = WeightFromInput(ParseDouble(e.Value))" />
+                                <span class="input-group-text exercise-defaults__unit">@WeightUnit</span>
+                            </div>
+                        </div>
+                    }
+                    else if (ex.Type == ExerciseType.Timed)
+                    {
+                        <div class="exercise-defaults__field exercise-defaults__field--grow">
+                            <label class="exercise-defaults__label">Duration</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0"
+                                       class="form-control exercise-defaults__input exercise-defaults__input--time"
+                                       placeholder="0"
+                                       value="@GetMins(ex.DurationSeconds)"
+                                       @onchange="e => SetExDuration(ex, ParseInt(e.Value), GetSecs(ex.DurationSeconds))" />
+                                <span class="input-group-text exercise-defaults__unit">m</span>
+                                <input type="number" min="0" max="59"
+                                       class="form-control exercise-defaults__input exercise-defaults__input--time"
+                                       placeholder="0"
+                                       value="@GetSecs(ex.DurationSeconds)"
+                                       @onchange="e => SetExDuration(ex, GetMins(ex.DurationSeconds), ParseInt(e.Value))" />
+                                <span class="input-group-text exercise-defaults__unit">s</span>
                             </div>
                         </div>
                     }
                     else
                     {
                         <div class="exercise-defaults__field exercise-defaults__field--grow">
-                            <label class="exercise-defaults__label">Duration</label>
+                            <label class="exercise-defaults__label">Distance</label>
                             <div class="input-group input-group-sm">
-                                <input type="number" min="1"
+                                <input type="number" min="0" step="0.01"
                                        class="form-control exercise-defaults__input"
                                        placeholder="0"
-                                       @bind="ex.DurationSeconds" />
+                                       value="@DistForDisplay(ex.DistanceKm)"
+                                       @onchange="e => ex.DistanceKm = DistFromInput(ParseDouble(e.Value))" />
+                                <span class="input-group-text exercise-defaults__unit">@DistanceUnit</span>
+                            </div>
+                        </div>
+                        <div class="exercise-defaults__field exercise-defaults__field--grow">
+                            <label class="exercise-defaults__label">Duration</label>
+                            <div class="input-group input-group-sm">
+                                <input type="number" min="0"
+                                       class="form-control exercise-defaults__input exercise-defaults__input--time"
+                                       placeholder="0"
+                                       value="@GetMins(ex.DurationSeconds)"
+                                       @onchange="e => SetExDuration(ex, ParseInt(e.Value), GetSecs(ex.DurationSeconds))" />
+                                <span class="input-group-text exercise-defaults__unit">m</span>
+                                <input type="number" min="0" max="59"
+                                       class="form-control exercise-defaults__input exercise-defaults__input--time"
+                                       placeholder="0"
+                                       value="@GetSecs(ex.DurationSeconds)"
+                                       @onchange="e => SetExDuration(ex, GetMins(ex.DurationSeconds), ParseInt(e.Value))" />
                                 <span class="input-group-text exercise-defaults__unit">s</span>
                             </div>
                         </div>
@@ -194,6 +237,38 @@
     private bool            _isNew    = true;
     private string?         _error;
 
+    // ── Weight unit ──────────────────────────────────────────────────
+    private bool   _isMetric  = true;
+    private string WeightUnit => _isMetric ? "kg" : "lbs";
+
+    private string? WeightForDisplay(double? kg)
+    {
+        if (!kg.HasValue) return null;
+        var v = _isMetric ? kg.Value : Math.Round(kg.Value * 2.20462, 1);
+        return v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private double? WeightFromInput(double? display) =>
+        display.HasValue
+            ? (_isMetric ? display.Value : Math.Round(display.Value / 2.20462, 4))
+            : (double?)null;
+
+    // ── Distance unit ────────────────────────────────────────────────
+    private bool   _isKm        = true;
+    private string DistanceUnit => _isKm ? "km" : "mi";
+
+    private string? DistForDisplay(double? km)
+    {
+        if (!km.HasValue) return null;
+        var v = _isKm ? km.Value : Math.Round(km.Value * 0.621371, 3);
+        return v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private double? DistFromInput(double? display) =>
+        display.HasValue
+            ? (_isKm ? display.Value : Math.Round(display.Value / 0.621371, 6))
+            : (double?)null;
+
     // ── Collapse state ───────────────────────────────────────────────
     private HashSet<Exercise> _collapsedExercises = new();
 
@@ -221,6 +296,7 @@
     {
         var parts = new System.Text.StringBuilder("exercise-row");
         if (ex.Type == ExerciseType.Timed)                              parts.Append(" exercise-row--timed");
+        else if (ex.Type == ExerciseType.Cardio)                        parts.Append(" exercise-row--cardio");
         if (IsCollapsed(ex))                                            parts.Append(" exercise-row--collapsed");
         if (_dragFromIndex == idx)                                      parts.Append(" exercise-row--dragging");
         if (_dragToIndex == idx && _dragFromIndex != idx)               parts.Append(" exercise-row--drag-over");
@@ -269,20 +345,45 @@
 
     private void Cancel() => Nav.NavigateTo("/templates");
 
-    private static string FormatLastSets(Exercise ex)
+    private string FormatLastSets(Exercise ex)
     {
         if (ex.LastSets.Count == 0) return "";
-        var n = ex.LastSets.Count;
+        var n     = ex.LastSets.Count;
         var first = ex.LastSets[0];
         if (ex.Type == ExerciseType.RepsWeight)
         {
             var reps = first.Reps?.ToString() ?? "?";
-            var wt = first.WeightKg.HasValue
-                ? $" @ {first.WeightKg.Value.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)} kg"
-                : "";
+            string wt = "";
+            if (first.WeightKg.HasValue)
+            {
+                var w = _isMetric ? first.WeightKg.Value : Math.Round(first.WeightKg.Value * 2.20462, 1);
+                wt = $" @ {w.ToString("G29", System.Globalization.CultureInfo.InvariantCulture)} {WeightUnit}";
+            }
             return $"{n} × {reps} reps{wt}";
         }
-        return $"{n} × {first.DurationSeconds?.ToString() ?? "?"} s";
+        if (ex.Type == ExerciseType.Cardio)
+        {
+            var dist = first.DistanceKm.HasValue
+                ? DistForDisplay(first.DistanceKm)! + " " + DistanceUnit
+                : "";
+            var dur  = first.DurationSeconds.HasValue ? " · " + FormatMmSs(first.DurationSeconds.Value) : "";
+            return $"{n}× {dist}{dur}".Trim();
+        }
+        return $"{n} × {FormatMmSs(first.DurationSeconds ?? 0)}";
+    }
+
+    private static int GetMins(int? totalSec) => (totalSec ?? 0) / 60;
+    private static int GetSecs(int? totalSec) => (totalSec ?? 0) % 60;
+
+    private static void SetExDuration(Exercise ex, int? mins, int? secs) =>
+        ex.DurationSeconds = (mins ?? 0) * 60 + (secs ?? 0);
+
+    private static string FormatMmSs(int seconds)
+    {
+        if (seconds <= 0) return "0s";
+        var mins = seconds / 60;
+        var secs = seconds % 60;
+        return mins > 0 ? $"{mins}:{secs:D2}" : $"{secs}s";
     }
 
     private static int? ParseInt(object? value) =>
@@ -312,6 +413,13 @@
 
     private void ApplyWgerInfo(Exercise ex, WgerExerciseInfo info)
     {
+        // Auto-switch to Cardio type when wger says the category is Cardio
+        if (string.Equals(info.Category, "Cardio", StringComparison.OrdinalIgnoreCase))
+        {
+            SetType(ex, ExerciseType.Cardio);
+            return; // cardio exercises don't have a muscle group
+        }
+
         // WgerService already normalises category to canonical English names
         var match = MuscleGroups.FirstOrDefault(g =>
             string.Equals(g, info.Category, StringComparison.OrdinalIgnoreCase));
@@ -321,6 +429,14 @@
 
     protected override async Task OnInitializedAsync()
     {
+        // Load weight unit preference
+        var unitRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
+        _isMetric = unitRaw != "lbs";
+
+        // Load distance unit preference
+        var distRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
+        _isKm = distRaw != "mi";
+
         if (Id.HasValue)
         {
             var templates = await WorkoutService.GetTemplatesAsync();
@@ -356,11 +472,10 @@
     {
         ex.Type = type;
         if (type == ExerciseType.RepsWeight)
-            ex.DurationSeconds = null;
-        else
-        {
-            ex.Reps = null;
-            ex.WeightKg = null;
-        }
+        { ex.DurationSeconds = null; ex.DistanceKm = null; }
+        else if (type == ExerciseType.Timed)
+        { ex.Reps = null; ex.WeightKg = null; ex.DistanceKm = null; }
+        else // Cardio
+        { ex.Reps = null; ex.WeightKg = null; }
     }
 }

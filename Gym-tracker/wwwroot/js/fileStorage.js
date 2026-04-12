@@ -1,6 +1,13 @@
 window.gymTracker = (() => {
     let _db = null;
     let _handle = null;
+    let _installPromptEvent = null;
+
+    // Capture install prompt as early as possible
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        _installPromptEvent = e;
+    });
 
     async function openDb() {
         if (_db) return _db;
@@ -103,6 +110,63 @@ window.gymTracker = (() => {
                 tx.oncomplete = resolve;
                 tx.onerror = reject;
             });
+        },
+
+        playChime() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [[880, 0], [1100, 0.18], [1320, 0.36]].forEach(([freq, start]) => {
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+                    gain.gain.setValueAtTime(0.22, ctx.currentTime + start);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + 0.38);
+                    osc.start(ctx.currentTime + start);
+                    osc.stop(ctx.currentTime  + start + 0.38);
+                });
+            } catch { /* Safari / no AudioContext */ }
+        },
+
+        // ── PWA install prompt ────────────────────────────────────────
+        isInStandaloneMode() {
+            return window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true;
+        },
+
+        isIos() {
+            return /iPhone|iPad|iPod/i.test(navigator.userAgent) && !window.MSStream;
+        },
+
+        isInstallable() {
+            return _installPromptEvent !== null && !this.isInStandaloneMode();
+        },
+
+        async showInstallPrompt() {
+            if (!_installPromptEvent) return 'dismissed';
+            _installPromptEvent.prompt();
+            const { outcome } = await _installPromptEvent.userChoice;
+            _installPromptEvent = null; // can only be used once
+            return outcome; // 'accepted' | 'dismissed'
+        },
+
+        // ── Data export ───────────────────────────────────────────────
+        downloadJson(content, filename) {
+            const blob = new Blob([content], { type: 'application/json' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        },
+
+        // ── Utility ───────────────────────────────────────────────────
+        clickById(id) {
+            const el = document.getElementById(id);
+            if (el) el.click();
         }
     };
 })();

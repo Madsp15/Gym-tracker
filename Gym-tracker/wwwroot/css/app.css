@@ -378,6 +378,10 @@ code {
     border-color: #2F57A0;
 }
 
+.exercise-row--cardio {
+    border-color: #1a8c6e;
+}
+
 .exercise-row__header {
     display: flex;
     align-items: center;

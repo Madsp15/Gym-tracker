@@ -5,6 +5,26 @@
     min-width: 0;
 }
 
+/* ── Input dark-theme overrides ─────────────────────────── */
+
+.ex-ac input.form-control {
+    background: #192033 !important;
+    border-color: #283a5a !important;
+    color: #D0DCF1 !important;
+}
+
+.ex-ac input.form-control:focus {
+    background: #192033 !important;
+    color: #D0DCF1 !important;
+    border-color: #6A5BC2 !important;
+    box-shadow: none !important;
+}
+
+.ex-ac input.form-control::placeholder {
+    color: #4a5a78;
+    opacity: 1;
+}
+
 /* ── Dropdown ───────────────────────────────────────────── */
 
 .ex-ac__dropdown {

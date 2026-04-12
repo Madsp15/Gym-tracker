@@ -1,0 +1,165 @@
+﻿.settings-page {
+    max-width: 640px;
+    margin: 0.75rem auto 4rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* ── Section card ────────────────────────────────────────── */
+
+.settings-section {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    overflow: hidden;
+}
+
+.settings-section__title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #7d90b5;
+    padding: 0.75rem 1rem 0.4rem;
+    margin: 0;
+}
+
+.settings-section--danger .settings-section__title {
+    color: #e0636a;
+}
+
+/* ── Row ─────────────────────────────────────────────────── */
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+    border-top: 1px solid #283a5a;
+}
+
+.settings-row--column {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.settings-row__info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
+}
+
+.settings-row__label {
+    font-weight: 600;
+    color: #D0DCF1;
+    font-size: 0.92rem;
+}
+
+.settings-row__desc {
+    font-size: 0.78rem;
+    color: #7d90b5;
+    line-height: 1.4;
+}
+
+.settings-row__desc strong {
+    color: #c4b8ff;
+}
+
+.settings-row__hint {
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+
+/* ── Rest timer preset pills ─────────────────────────────── */
+
+.settings-presets {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.settings-preset-btn {
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 1rem;
+    padding: 0.3rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    min-height: 36px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.settings-preset-btn:hover {
+    background: #1e2a44;
+    color: #D0DCF1;
+    border-color: #6A5BC2;
+}
+
+.settings-preset-btn--active {
+    background: #6A5BC2;
+    border-color: #6A5BC2;
+    color: #fff;
+}
+
+/* ── Import confirm panel ────────────────────────────────── */
+
+.settings-import-confirm {
+    margin: 0 1rem 0.85rem;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 0.5rem;
+    padding: 0.8rem 1rem;
+}
+
+.settings-import-confirm__summary {
+    font-size: 0.88rem;
+    color: #D0DCF1;
+    margin-bottom: 0.7rem;
+    line-height: 1.5;
+}
+
+.settings-import-confirm__summary strong {
+    color: #c4b8ff;
+}
+
+.settings-import-confirm__actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* ── Status messages ─────────────────────────────────────── */
+
+.settings-status {
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.3rem 1rem 0.8rem;
+    margin: 0;
+}
+
+.settings-status--ok  { color: #1a8c6e; }
+.settings-status--err { color: #e0636a; }
+
+/* ── Danger zone confirm ─────────────────────────────────── */
+
+.settings-danger-confirm {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.settings-danger-confirm__text {
+    font-size: 0.82rem;
+    color: #e0636a;
+    font-weight: 600;
+}
+

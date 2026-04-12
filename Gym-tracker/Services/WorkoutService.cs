@@ -99,6 +99,25 @@ public class WorkoutService(IJSRuntime js)
         await PersistStoreAsync(store);
     }
 
+    /// <summary>Returns the full data store serialised as JSON (for backup / export).</summary>
+    public async Task<string> ExportJsonAsync()
+    {
+        var store = await ReadStoreAsync();
+        return JsonSerializer.Serialize(store, _json);
+    }
+
+    /// <summary>
+    /// Replaces the entire data store with the supplied JSON.
+    /// Used for import-from-backup and clear-all-data.
+    /// </summary>
+    public async Task ImportAsync(string json)
+    {
+        WorkoutStore store;
+        try { store = JsonSerializer.Deserialize<WorkoutStore>(json, _json) ?? new WorkoutStore(); }
+        catch { store = new WorkoutStore(); }
+        await PersistStoreAsync(store);
+    }
+
     // ── Legacy: Support old Workout model ────────────────────────────────
     [Obsolete("Use GetLoggedWorkoutsAsync() instead.")]
     public async Task<List<Workout>> GetAllAsync()

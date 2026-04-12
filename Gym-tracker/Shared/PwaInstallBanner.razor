@@ -1,0 +1,73 @@
+﻿@inject IJSRuntime JS
+
+@if (_showBanner)
+{
+    <div class="pwa-banner" role="banner" aria-label="Install app">
+        @if (_isIos)
+        {
+            <span class="pwa-banner__icon" aria-hidden="true">📲</span>
+            <span class="pwa-banner__text">
+                Install Gym Tracker: tap <strong>Share</strong> then <strong>Add to Home Screen</strong>
+            </span>
+        }
+        else
+        {
+            <span class="pwa-banner__icon" aria-hidden="true"></span>
+            <span class="pwa-banner__text">Install Gym Tracker for quick offline access</span>
+            <button class="pwa-banner__install" @onclick="InstallAsync">Install app</button>
+        }
+        <button class="pwa-banner__dismiss" @onclick="Dismiss" aria-label="Dismiss install prompt">✕</button>
+    </div>
+}
+
+@code {
+    private bool _showBanner    = false;
+    private bool _isIos         = false;
+    private bool _initialized   = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        _initialized = true;
+
+        // Never show if already running as installed PWA
+        var isStandalone = await JS.InvokeAsync<bool>("gymTracker.isInStandaloneMode");
+        if (isStandalone) return;
+
+        // Never show again if the user dismissed this session
+        var dismissed = await JS.InvokeAsync<string?>(
+            "sessionStorage.getItem", "pwa_banner_dismissed");
+        if (dismissed == "1") return;
+
+        // iOS: no beforeinstallprompt — show manual instructions
+        var isIos = await JS.InvokeAsync<bool>("gymTracker.isIos");
+        if (isIos)
+        {
+            _isIos      = true;
+            _showBanner = true;
+            StateHasChanged();
+            return;
+        }
+
+        // Chrome / Edge / Samsung: check for captured prompt
+        var isInstallable = await JS.InvokeAsync<bool>("gymTracker.isInstallable");
+        if (isInstallable)
+        {
+            _showBanner = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InstallAsync()
+    {
+        await JS.InvokeAsync<string>("gymTracker.showInstallPrompt");
+        _showBanner = false;
+    }
+
+    private async Task Dismiss()
+    {
+        _showBanner = false;
+        await JS.InvokeVoidAsync("sessionStorage.setItem", "pwa_banner_dismissed", "1");
+    }
+}
+
