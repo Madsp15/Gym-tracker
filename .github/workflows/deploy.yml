@@ -31,6 +31,12 @@ jobs:
       - name: Publish
         run: dotnet publish Gym-tracker/Gym-tracker.csproj -c Release -o publish
 
+      # GitHub Pages serves project repos at /Gym-tracker/ — Blazor's base href must match.
+      # Remove this step if you later add a custom domain (base href="/" will be correct again).
+      - name: Fix base href for GitHub Pages subdirectory
+        run: sed -i 's|<base href="/" />|<base href="/Gym-tracker/" />|g' publish/wwwroot/index.html
+
+      # Copy AFTER the base href fix so 404.html also has the correct path
       - name: SPA 404 fallback
         run: cp publish/wwwroot/index.html publish/wwwroot/404.html
 
