@@ -6,6 +6,55 @@ Built with **Blazor WebAssembly** targeting **.NET 10**.
 
 ---
 
+##  Using the App (GitHub Pages)
+
+The app is hosted at: **https://madsp15.github.io/Gym-tracker/**
+
+### Step 1 — Install it to your home screen
+
+Installing the app gives you a full-screen experience with no browser chrome, just like a native app.
+
+**Android (Chrome or Edge)**
+1. Open the link above in Chrome or Edge
+2. Tap the **"Install app"** banner that appears at the bottom, or tap ⋮ → *Add to Home screen*
+3. Tap **Install** in the prompt
+
+**iPhone / iPad (Safari)**
+1. Open the link above in Safari *(must be Safari — Chrome/Firefox on iOS cannot install PWAs)*
+2. Tap the **Share** button (the box with an arrow at the bottom of the screen)
+3. Scroll down and tap **Add to Home Screen**
+4. Tap **Add**
+
+**Desktop (Chrome or Edge)**
+1. Open the link in Chrome or Edge
+2. Click the install icon (⊕) in the address bar, or click ⋮ → *Install Gym Tracker…*
+
+> Once installed, the app works **fully offline** — no internet connection is needed after the first load.
+
+---
+
+### Step 2 — Set up data storage
+
+The first time you open the app you'll be asked where to save your data.
+
+| Browser | What happens |
+|---------|-------------|
+| **Chrome / Edge desktop** | A "Choose save location" prompt appears — pick any folder (e.g. iCloud Drive, OneDrive, or a local folder). Your data is saved as a `workouts.json` file and syncs across devices if you use a cloud folder. |
+| **Firefox / Safari / iOS** | Data is stored automatically in your browser's local storage — no setup needed. |
+
+> **File permission on relaunch:** Chrome/Edge asks for file permission once per session. A **"Reconnect to file"** banner appears at the top of the app when needed — tap it once and you're good for the whole session.
+
+---
+
+### Step 3 — Back up your data
+
+Go to **Settings** at any time to:
+- **Export** all your data as a JSON file (great for backups or moving to another device)
+- **Import** a previously exported backup
+- Switch between **kg / lbs** and **km / mi**
+
+---
+
 ## Features
 
 - **Workout Templates** – Create reusable workout plans with per-exercise defaults (sets, reps, weight/duration) and an interactive muscle-group body diagram.
