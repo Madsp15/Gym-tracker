@@ -8,7 +8,7 @@
 <PageTitle>@(_isNew ? "New Workout (Legacy)" : "Edit Workout (Legacy)") – Gym Tracker</PageTitle>
 
 <div class="alert alert-warning" role="alert">
-    <strong>⚠️ Legacy Page</strong> — This interface is deprecated. Please use <a href="/templates">Templates</a> to manage workout templates.
+    <strong>⚠️ Legacy Page</strong> — This interface is deprecated. Please use <a href="templates">Templates</a> to manage workout templates.
 </div>
 
 <div class="page-header">
@@ -150,7 +150,7 @@
             return;
         }
         await WorkoutService.SaveAsync(_workout);
-        Nav.NavigateTo("/workouts");
+        Nav.NavigateTo("workouts");
     }
 #pragma warning restore CS0618
 
@@ -170,7 +170,7 @@
     }
 
 
-    private void Cancel() => Nav.NavigateTo("/workouts");
+    private void Cancel() => Nav.NavigateTo("workouts");
 
     private static int? ParseInt(object? value) =>
         int.TryParse(value?.ToString(), out var v) ? v : null;

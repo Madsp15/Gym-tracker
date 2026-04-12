@@ -340,10 +340,10 @@
             return;
         }
         await WorkoutService.SaveTemplateAsync(_template);
-        Nav.NavigateTo("/templates");
+        Nav.NavigateTo("templates");
     }
 
-    private void Cancel() => Nav.NavigateTo("/templates");
+    private void Cancel() => Nav.NavigateTo("templates");
 
     private string FormatLastSets(Exercise ex)
     {

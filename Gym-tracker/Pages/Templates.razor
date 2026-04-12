@@ -133,9 +133,9 @@ else
         _templates = null;
     }
 
-    private void CreateNew() => Nav.NavigateTo("/templates/new");
-    private void Edit(Guid id) => Nav.NavigateTo($"/templates/{id}");
-    private void StartWorkout(Guid templateId) => Nav.NavigateTo($"/workouts/log/{templateId}");
+    private void CreateNew() => Nav.NavigateTo("templates/new");
+    private void Edit(Guid id) => Nav.NavigateTo($"templates/{id}");
+    private void StartWorkout(Guid templateId) => Nav.NavigateTo($"workouts/log/{templateId}");
 
     private async Task Delete(Guid id)
     {

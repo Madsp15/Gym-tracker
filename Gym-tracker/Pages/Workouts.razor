@@ -242,7 +242,7 @@ else
     private void ShowList() => _viewMode = "list";
     private void ShowCalendar() => _viewMode = "calendar";
     private void LogForDate(DateOnly day) =>
-        Nav.NavigateTo($"/workouts/log?date={day:yyyy-MM-dd}");
+        Nav.NavigateTo($"workouts/log?date={day:yyyy-MM-dd}");
 
     private void PrevMonth()
     {
@@ -295,9 +295,9 @@ else
         _workoutsByDate = null;
     }
 
-    private void LogNew() => Nav.NavigateTo("/workouts/log");
-    private void Edit(Guid id) => Nav.NavigateTo($"/workouts/{id}");
-    private void View(Guid id) => Nav.NavigateTo($"/workouts/{id}/view");
+    private void LogNew() => Nav.NavigateTo("workouts/log");
+    private void Edit(Guid id) => Nav.NavigateTo($"workouts/{id}");
+    private void View(Guid id) => Nav.NavigateTo($"workouts/{id}/view");
 
     private async Task ExportJson()
     {

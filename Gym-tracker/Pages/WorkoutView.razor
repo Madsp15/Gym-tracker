@@ -13,7 +13,7 @@
 else if (_notFound)
 {
     <div class="page-header">
-        <button class="btn btn-sm btn-ghost" @onclick='() => Nav.NavigateTo("/workouts")'>← Back</button>
+        <button class="btn btn-sm btn-ghost" @onclick='() => Nav.NavigateTo("workouts")'>← Back</button>
         <h2 class="page-header__title">Workout</h2>
     </div>
     <p class="text-muted ps-3">Workout not found.</p>
@@ -21,9 +21,9 @@ else if (_notFound)
 else if (_workout is not null)
 {
     <div class="page-header">
-        <button class="btn btn-sm btn-ghost" @onclick='() => Nav.NavigateTo("/workouts")'>← Back</button>
+        <button class="btn btn-sm btn-ghost" @onclick='() => Nav.NavigateTo("workouts")'>← Back</button>
         <h2 class="page-header__title">@_workout.Name</h2>
-        <a class="btn btn-sm btn-ghost" href="/workouts/@_workout.Id">✎ Edit</a>
+        <a class="btn btn-sm btn-ghost" href="workouts/@_workout.Id">✎ Edit</a>
     </div>
 
     <div class="wv-meta">

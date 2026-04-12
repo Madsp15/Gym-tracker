@@ -817,7 +817,7 @@ else
 
         await WorkoutService.SaveLoggedWorkoutAsync(_workout);
         await WriteBackToTemplateAsync();
-        Nav.NavigateTo("/workouts");
+        Nav.NavigateTo("workouts");
     }
 
     private async Task WriteBackToTemplateAsync()
@@ -844,7 +844,7 @@ else
         await WorkoutService.SaveTemplateAsync(template);
     }
 
-    private void Cancel() => Nav.NavigateTo("/workouts");
+    private void Cancel() => Nav.NavigateTo("workouts");
 
     private static int? ParseInt(object? value) =>
         int.TryParse(value?.ToString(), out var v) ? v : null;
