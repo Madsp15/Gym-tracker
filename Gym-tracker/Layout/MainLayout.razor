@@ -8,7 +8,7 @@
     </div>
 
     <main>
-        @if (WorkoutService.IsInitialized && WorkoutService.NeedsPermission)
+        @if (WorkoutService.IsInitialized && WorkoutService.NeedsPermission && !_bannerDismissed)
         {
             <div class="permission-banner">
                 <span class="permission-banner__text">
@@ -17,6 +17,7 @@
                 <button class="btn btn-accent permission-banner__btn" @onclick="ReconnectFile">
                     Reconnect to file
                 </button>
+                <button class="permission-banner__dismiss" @onclick="() => _bannerDismissed = true" title="Dismiss">✕</button>
             </div>
         }
         <article class="content px-4">
@@ -28,6 +29,8 @@
 <PwaInstallBanner />
 
 @code {
+    private bool _bannerDismissed;
+
     protected override async Task OnInitializedAsync()
     {
         await WorkoutService.InitializeAsync();
@@ -36,10 +39,6 @@
     private async Task ReconnectFile()
     {
         var granted = await WorkoutService.RequestPermissionAsync();
-        if (granted)
-            // Soft SPA navigation to home — re-mounts the page so data reloads with the
-            // now-active permission, without a full page reload that would reset the
-            // Android Chrome file-handle permission state and cause the banner to reappear.
-            Nav.NavigateTo(Nav.BaseUri);
+        if (!granted) _bannerDismissed = true; // hide banner even if permission was declined
     }
 }

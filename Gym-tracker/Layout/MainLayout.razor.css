@@ -91,3 +91,21 @@ main {
     font-size: 0.85rem;
     padding: 0.35rem 0.9rem;
 }
+
+.permission-banner__dismiss {
+    flex-shrink: 0;
+    background: transparent;
+    border: none;
+    color: #7d90b5;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0.25rem 0.4rem;
+    cursor: pointer;
+    border-radius: 0.3rem;
+    transition: color 0.12s ease;
+}
+
+.permission-banner__dismiss:hover {
+    color: #D0DCF1;
+}
+
