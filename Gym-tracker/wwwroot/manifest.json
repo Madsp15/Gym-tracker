@@ -2,7 +2,7 @@
   "name": "Gym Tracker",
   "short_name": "Gym",
   "description": "Track your gym workouts, progress and goals.",
-  "start_url": "/",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#0f1420",
   "theme_color": "#2F57A0",

@@ -276,8 +276,17 @@ else
             _importJson = await reader.ReadToEndAsync();
             var opts  = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
             var store = System.Text.Json.JsonSerializer.Deserialize<WorkoutStore>(_importJson, opts);
-            if (store is null) { _importState = ImportState.Error; }
-            else               { _importStore = store; _importState = ImportState.Confirm; }
+            if (store is null)
+            {
+                _importState = ImportState.Error;
+            }
+            else if (store.Templates.Count > 500 || store.LoggedWorkouts.Count > 10_000
+                     || store.Templates.Any(t => (t.Name?.Length ?? 0) > 200 || t.Exercises.Count > 200)
+                     || store.LoggedWorkouts.Any(w => (w.Name?.Length ?? 0) > 200 || w.Exercises.Count > 200))
+            {
+                _importState = ImportState.Error;
+            }
+            else { _importStore = store; _importState = ImportState.Confirm; }
         }
         catch { _importState = ImportState.Error; }
         StateHasChanged();
