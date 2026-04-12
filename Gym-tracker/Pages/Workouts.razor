@@ -53,13 +53,6 @@ else
     {
         <p class="text-muted ps-3">Loading…</p>
     }
-    else if (_workouts.Count == 0)
-    {
-        <div class="empty-state">
-            <p class="empty-state__text">No logged workouts yet. Log your first workout!</p>
-            <button class="btn btn-accent" @onclick="LogNew">+ Log Workout</button>
-        </div>
-    }
     else
     {
         <div class="view-toggle">
@@ -73,6 +66,15 @@ else
 
         @if (_viewMode == "list")
         {
+            @if (_workouts!.Count == 0)
+            {
+                <div class="empty-state">
+                    <p class="empty-state__text">No logged workouts yet. Log your first workout!</p>
+                    <button class="btn btn-accent" @onclick="LogNew">+ Log Workout</button>
+                </div>
+            }
+            else
+            {
             <div class="workout-list">
                 @foreach (var w in _workouts.OrderByDescending(x => x.Date))
                 {
@@ -97,6 +99,7 @@ else
                     </div>
                 }
             </div>
+            } @* end else (has workouts) *@
         }
         else
         {

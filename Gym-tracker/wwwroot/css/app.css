@@ -9,6 +9,8 @@ html, body {
 :root {
     --blazor-load-percentage: 0%;
     --blazor-load-percentage-text: "Loading";
+    /* Override Bootstrap's secondary colour so .text-muted is readable on the dark theme */
+    --bs-secondary-color: #7d90b5;
 }
 
 h1:focus {

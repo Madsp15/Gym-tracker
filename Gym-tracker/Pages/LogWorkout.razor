@@ -198,6 +198,8 @@ else
                             <button class="btn btn-sm btn-ghost" @onclick="() => RemoveSet(StepExercise, sIdx)">✕</button>
                         </div>
                     }
+                    @if (!_isPastDate)
+                    {
                     <div class="rest-timer-presets">
                         <span class="rest-timer-presets__label">Rest:</span>
                         <button class="rest-timer-presets__btn @(_defaultRestSeconds == 60  ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(60)">1m</button>
@@ -205,6 +207,7 @@ else
                         <button class="rest-timer-presets__btn @(_defaultRestSeconds == 120 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(120)">2m</button>
                         <button class="rest-timer-presets__btn @(_defaultRestSeconds == 180 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(180)">3m</button>
                     </div>
+                    }
                 </div>
 
                 <div class="exercise-footer">
@@ -338,6 +341,8 @@ else
                                 <button class="btn btn-sm btn-ghost" @onclick="() => RemoveSet(ex, sIdx)">✕</button>
                             </div>
                         }
+                        @if (!_isPastDate)
+                        {
                         <div class="rest-timer-presets">
                             <span class="rest-timer-presets__label">Rest:</span>
                             <button class="rest-timer-presets__btn @(_defaultRestSeconds == 60  ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(60)">1m</button>
@@ -345,6 +350,7 @@ else
                             <button class="rest-timer-presets__btn @(_defaultRestSeconds == 120 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(120)">2m</button>
                             <button class="rest-timer-presets__btn @(_defaultRestSeconds == 180 ? "rest-timer-presets__btn--default" : "")" @onclick="() => StartRestFromButton(180)">3m</button>
                         </div>
+                        }
                     </div>
 
                     <div class="exercise-footer">
@@ -369,7 +375,7 @@ else
         </div>
     </div>
 
-    @if (_restActive)
+    @if (!_isPastDate && _restActive)
     {
         <div class="rest-timer-bar">
             <span class="rest-timer-bar__label">Rest</span>
@@ -489,6 +495,8 @@ else
     private Exercise? GetTemplateEx(string name) =>
         _templateExByName.TryGetValue(name, out var ex) ? ex : null;
 
+    private bool _isPastDate => _defaultDate.Date < DateTime.Today;
+
     private bool AllExercisesNamed =>
         _workout.Exercises.Count > 0 &&
         _workout.Exercises.All(e => !string.IsNullOrWhiteSpace(e.Name));
@@ -540,12 +548,12 @@ else
                 _stepThrough = template.Exercises.Count > 1;
             }
             _step = LogStep.Logging;
-            StartStopwatch();
+            if (!_isPastDate) StartStopwatch();
         }
         else
         {
             _step = _templates.Count > 0 ? LogStep.PickTemplate : LogStep.Logging;
-            if (_step == LogStep.Logging) StartStopwatch();
+            if (_step == LogStep.Logging && !_isPastDate) StartStopwatch();
         }
     }
 
@@ -594,7 +602,7 @@ else
         _stepThrough = template.Exercises.Count > 1;
         _currentExerciseIndex = 0;
         _step = LogStep.Logging;
-        StartStopwatch();
+        if (!_isPastDate) StartStopwatch();
     }
 
     private void StartBlank()
@@ -603,7 +611,7 @@ else
         _templateExByName.Clear();
         _stepThrough = false;
         _step = LogStep.Logging;
-        StartStopwatch();
+        if (!_isPastDate) StartStopwatch();
     }
 
     private void GoBack()
