@@ -40,10 +40,10 @@ window.gymTracker = (() => {
     }
 
     async function ensurePermission(handle) {
+        // Only QUERY — never request. requestPermission() requires a user gesture
+        // and is called explicitly via requestFilePermission() below.
         const perm = await handle.queryPermission({ mode: 'readwrite' });
-        if (perm === 'granted') return true;
-        const req = await handle.requestPermission({ mode: 'readwrite' });
-        return req === 'granted';
+        return perm === 'granted';
     }
 
     return {
@@ -112,6 +112,27 @@ window.gymTracker = (() => {
             });
         },
 
+        // ── Permission helpers ─────────────────────────────────────────
+        async checkFilePermission() {
+            try {
+                const h = _handle || await loadHandle();
+                if (!h) return false;
+                return (await h.queryPermission({ mode: 'readwrite' })) === 'granted';
+            } catch { return false; }
+        },
+
+        async requestFilePermission() {
+            try {
+                const h = _handle || await loadHandle();
+                if (!h) return false;
+                const perm = await h.queryPermission({ mode: 'readwrite' });
+                if (perm === 'granted') { _handle = h; return true; }
+                const req = await h.requestPermission({ mode: 'readwrite' });
+                if (req === 'granted') { _handle = h; return true; }
+                return false;
+            } catch { return false; }
+        },
+
         playChime() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -170,4 +191,3 @@ window.gymTracker = (() => {
         }
     };
 })();
-

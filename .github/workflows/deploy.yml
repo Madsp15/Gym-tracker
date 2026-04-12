@@ -28,14 +28,17 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
+      # index.html uses href="/" for local dev.
+      # Patch it to the GitHub Pages sub-path before building.
+      - name: Patch base href for GitHub Pages
+        run: |
+          sed -i 's|<base href="/" />|<base href="/Gym-tracker/" />|' \
+            Gym-tracker/wwwroot/index.html
+
       - name: Publish
         run: dotnet publish Gym-tracker/Gym-tracker.csproj -c Release -o publish
 
-      # Copy 404.html so GitHub Pages serves the Blazor shell for all deep-link paths.
-      # The <base href="/Gym-tracker/" /> is already set correctly in the source index.html.
-      - name: SPA 404 fallback
-        run: cp publish/wwwroot/index.html publish/wwwroot/404.html
-
+      # Disable Jekyll so GitHub Pages serves _framework/ correctly.
       - name: Disable Jekyll
         run: touch publish/wwwroot/.nojekyll
 

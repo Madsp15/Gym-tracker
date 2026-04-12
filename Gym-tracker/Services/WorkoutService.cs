@@ -20,15 +20,33 @@ public class WorkoutService(IJSRuntime js)
     // True = API supported but user hasn't picked a file yet
     public bool NeedsFileSetup { get; set; }
 
+    // True = handle exists but permission has expired (needs user tap to reconnect)
+    public bool NeedsPermission { get; private set; }
+
     public bool IsInitialized { get; private set; }
 
+    // Ensures InitializeAsync runs exactly once even if called concurrently from
+    // multiple components (layout + page) on first render.
+    private Task? _initTask;
+
     /// <summary>Call once on page load (before rendering data).</summary>
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        if (IsInitialized) return;
+        _initTask ??= RunInitializeAsync();
+        return _initTask;
+    }
+
+    private async Task RunInitializeAsync()
+    {
         IsFileApiSupported = await js.InvokeAsync<bool>("gymTracker.isSupported");
         if (IsFileApiSupported)
-            NeedsFileSetup = !await js.InvokeAsync<bool>("gymTracker.hasHandle");
+        {
+            var hasHandle = await js.InvokeAsync<bool>("gymTracker.hasHandle");
+            if (!hasHandle)
+                NeedsFileSetup = true;
+            else
+                NeedsPermission = !await js.InvokeAsync<bool>("gymTracker.checkFilePermission");
+        }
         IsInitialized = true;
     }
 
@@ -41,7 +59,21 @@ public class WorkoutService(IJSRuntime js)
         if (!picked) return false;
 
         NeedsFileSetup = false;
+        NeedsPermission = false;
         return true;
+    }
+
+    /// <summary>
+    /// Re-requests read/write permission for the stored file handle.
+    /// Must be called from a user-gesture handler (button click).
+    /// Returns true if permission was granted; the caller should then
+    /// force-reload the page so pages re-fetch their data cleanly.
+    /// </summary>
+    public async Task<bool> RequestPermissionAsync()
+    {
+        var granted = await js.InvokeAsync<bool>("gymTracker.requestFilePermission");
+        if (granted) NeedsPermission = false;
+        return granted;
     }
 
     /// <summary>Forget the stored file handle (lets user pick a different file).</summary>
@@ -49,6 +81,7 @@ public class WorkoutService(IJSRuntime js)
     {
         await js.InvokeVoidAsync("gymTracker.clearHandle");
         NeedsFileSetup = true;
+        NeedsPermission = false;
     }
 
     // ── Public CRUD: Templates ──────────────────────────────────────────────
@@ -221,4 +254,3 @@ public class WorkoutService(IJSRuntime js)
         await js.InvokeVoidAsync("localStorage.setItem", LocalStorageKey, json);
     }
 }
-

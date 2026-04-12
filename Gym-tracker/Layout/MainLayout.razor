@@ -1,10 +1,24 @@
 ﻿@inherits LayoutComponentBase
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+
 <div class="page">
     <div class="sidebar">
         <NavMenu/>
     </div>
 
     <main>
+        @if (WorkoutService.IsInitialized && WorkoutService.NeedsPermission)
+        {
+            <div class="permission-banner">
+                <span class="permission-banner__text">
+                    📂 Tap to reconnect to your workout file for this session.
+                </span>
+                <button class="btn btn-accent permission-banner__btn" @onclick="ReconnectFile">
+                    Reconnect to file
+                </button>
+            </div>
+        }
         <article class="content px-4">
             @Body
         </article>
@@ -12,3 +26,17 @@
 </div>
 
 <PwaInstallBanner />
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+    }
+
+    private async Task ReconnectFile()
+    {
+        var granted = await WorkoutService.RequestPermissionAsync();
+        if (granted)
+            Nav.NavigateTo(Nav.Uri, forceLoad: true); // reload so pages re-fetch data cleanly
+    }
+}

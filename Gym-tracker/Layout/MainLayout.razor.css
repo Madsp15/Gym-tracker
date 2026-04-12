@@ -65,3 +65,29 @@ main {
         width: 0;
     }
 }
+
+/* ── File permission reconnect banner ─────────────────── */
+
+.permission-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    background: #192033;
+    border-bottom: 2px solid #6A5BC2;
+    padding: 0.65rem 1rem;
+}
+
+.permission-banner__text {
+    font-size: 0.85rem;
+    color: #c4b8ff;
+    flex: 1;
+    min-width: 0;
+}
+
+.permission-banner__btn {
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    padding: 0.35rem 0.9rem;
+}
