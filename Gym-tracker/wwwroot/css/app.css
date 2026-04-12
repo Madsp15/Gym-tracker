@@ -4,6 +4,13 @@ html, body {
     color: #D0DCF1;
 }
 
+/* Declare Blazor loading custom properties so CSS linters don't flag them.
+   The Blazor startup script overrides these values at runtime. */
+:root {
+    --blazor-load-percentage: 0%;
+    --blazor-load-percentage-text: "Loading";
+}
+
 h1:focus {
     outline: none;
 }
