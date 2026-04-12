@@ -37,6 +37,9 @@
     {
         var granted = await WorkoutService.RequestPermissionAsync();
         if (granted)
-            Nav.NavigateTo(Nav.Uri, forceLoad: true); // reload so pages re-fetch data cleanly
+            // Soft SPA navigation to home — re-mounts the page so data reloads with the
+            // now-active permission, without a full page reload that would reset the
+            // Android Chrome file-handle permission state and cause the banner to reappear.
+            Nav.NavigateTo(Nav.BaseUri);
     }
 }
