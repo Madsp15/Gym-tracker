@@ -32,6 +32,7 @@
     top: calc(100% + 3px);
     left: 0;
     right: 0;
+    min-width: min(280px, 90vw);
     background: #192033;
     border: 1px solid #6A5BC2;
     border-radius: 0.55rem;
@@ -52,7 +53,7 @@
 
 .ex-ac__item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 0.5rem;
     width: 100%;
@@ -83,9 +84,8 @@
     font-weight: 500;
     flex: 1;
     min-width: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .ex-ac__item-cat {
@@ -97,5 +97,6 @@
     padding: 0.1rem 0.4rem;
     white-space: nowrap;
     flex-shrink: 0;
+    margin-top: 0.15rem;
 }
 

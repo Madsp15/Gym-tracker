@@ -598,7 +598,9 @@ code {
 .set-row__fields {
     flex: 1;
     display: flex;
+    flex-wrap: wrap;
     gap: 0.5rem;
+    min-width: 0;
 }
 
 .set-row__input {
@@ -607,6 +609,7 @@ code {
     color: #D0DCF1;
     font-size: 0.85rem;
     padding: 0.35rem 0.5rem;
+    min-width: 3.5rem;
 }
 
 .set-row__input:focus {
