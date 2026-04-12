@@ -1,5 +1,5 @@
 // Production service worker — caches all app assets for offline use.
-// The build system populates 'self.assetsManifest' from service-worker-assets.js.
+importScripts('./service-worker-assets.js');
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
