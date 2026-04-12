@@ -1,0 +1,133 @@
+﻿/* ── Page meta row ───────────────────────────────────────── */
+
+.wv-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    max-width: 640px;
+    margin: 0 auto 1.25rem;
+    padding: 0 1rem;
+}
+
+.wv-meta__date {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #D0DCF1;
+}
+
+.wv-meta__chip {
+    font-size: 0.78rem;
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 1rem;
+    padding: 0.15rem 0.65rem;
+    color: #7d90b5;
+    white-space: nowrap;
+}
+
+/* ── Exercise list ───────────────────────────────────────── */
+
+.wv-exercises {
+    max-width: 640px;
+    margin: 0 auto 2rem;
+    padding: 0 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+/* ── Exercise card ───────────────────────────────────────── */
+
+.wv-ex-card {
+    background: #192033;
+    border: 1px solid #283a5a;
+    border-radius: 0.75rem;
+    padding: 1rem 1rem 0.85rem;
+}
+
+.wv-ex-card__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.wv-ex-card__name {
+    flex: 1;
+    font-weight: 700;
+    font-size: 1rem;
+    color: #D0DCF1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wv-ex-card__type-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    background: #2F57A0;
+    color: #fff;
+    border-radius: 0.9rem;
+    padding: 0.15rem 0.55rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.wv-ex-card__type-badge--timed  { background: #2a6b50; }
+.wv-ex-card__type-badge--cardio { background: #1a6b55; }
+
+.wv-ex-card__po-badge {
+    font-size: 0.72rem;
+    color: #f4c542;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* ── Set rows ────────────────────────────────────────────── */
+
+.wv-ex-card__sets {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.wv-set-row {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #D0DCF1;
+    background: #0f1420;
+    border-radius: 0.4rem;
+    padding: 0.35rem 0.7rem;
+}
+
+.wv-set-row__num {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #4a5a78;
+    min-width: 1.1rem;
+    flex-shrink: 0;
+}
+
+.wv-set-row__value {
+    font-weight: 500;
+    color: #D0DCF1;
+}
+
+.wv-set-row__accent { color: #6A5BC2; }
+.wv-set-row__muted  { color: #7d90b5; font-size: 0.84rem; }
+
+/* ── Notes ───────────────────────────────────────────────── */
+
+.wv-ex-card__notes {
+    margin-top: 0.6rem;
+    padding-top: 0.55rem;
+    border-top: 1px solid #283a5a;
+    font-size: 0.82rem;
+    color: #7d90b5;
+    font-style: italic;
+    line-height: 1.45;
+}
+

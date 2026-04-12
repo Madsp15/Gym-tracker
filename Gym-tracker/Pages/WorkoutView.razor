@@ -1,0 +1,172 @@
+﻿@page "/workouts/{Id:guid}/view"
+@using System.Globalization
+@inject WorkoutService WorkoutService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>@(_workout?.Name ?? "Workout") – Gym Tracker</PageTitle>
+
+@if (!WorkoutService.IsInitialized)
+{
+    <p class="text-muted ps-3">Loading…</p>
+}
+else if (_notFound)
+{
+    <div class="page-header">
+        <button class="btn btn-sm btn-ghost" @onclick='() => Nav.NavigateTo("/workouts")'>← Back</button>
+        <h2 class="page-header__title">Workout</h2>
+    </div>
+    <p class="text-muted ps-3">Workout not found.</p>
+}
+else if (_workout is not null)
+{
+    <div class="page-header">
+        <button class="btn btn-sm btn-ghost" @onclick='() => Nav.NavigateTo("/workouts")'>← Back</button>
+        <h2 class="page-header__title">@_workout.Name</h2>
+        <a class="btn btn-sm btn-ghost" href="/workouts/@_workout.Id">✎ Edit</a>
+    </div>
+
+    <div class="wv-meta">
+        <span class="wv-meta__date">@_workout.Date.ToString("dddd, d MMMM yyyy")</span>
+        @if (_workout.DurationMinutes.HasValue)
+        {
+            <span class="wv-meta__chip">⏱ @_workout.DurationMinutes min</span>
+        }
+        <span class="wv-meta__chip">@_workout.Exercises.Count exercise@(_workout.Exercises.Count == 1 ? "" : "s")</span>
+    </div>
+
+    @if (_workout.Exercises.Count == 0)
+    {
+        <p class="text-muted ps-3">No exercises recorded.</p>
+    }
+    else
+    {
+        <div class="wv-exercises">
+            @foreach (var ex in _workout.Exercises)
+            {
+                <div class="wv-ex-card">
+                    <div class="wv-ex-card__header">
+                        <span class="wv-ex-card__name">@ex.Name</span>
+                        <span class="wv-ex-card__type-badge @(ex.Type == ExerciseType.Timed ? "wv-ex-card__type-badge--timed" : ex.Type == ExerciseType.Cardio ? "wv-ex-card__type-badge--cardio" : "")">
+                            @(ex.Type == ExerciseType.Timed ? "Timed" : ex.Type == ExerciseType.Cardio ? "Cardio" : "Reps")
+                        </span>
+                        @if (ex.ProgressiveOverload)
+                        {
+                            <span class="wv-ex-card__po-badge" title="Progressive overload">🏆 PO</span>
+                        }
+                    </div>
+
+                    <div class="wv-ex-card__sets">
+                        @for (int i = 0; i < ex.Sets.Count; i++)
+                        {
+                            var set = ex.Sets[i];
+                            <div class="wv-set-row">
+                                <span class="wv-set-row__num">@(i + 1)</span>
+                                @if (ex.Type == ExerciseType.RepsWeight)
+                                {
+                                    <span class="wv-set-row__value">
+                                        @(set.Reps.HasValue ? $"{set.Reps} reps" : "–")
+                                        @if (set.WeightKg.HasValue)
+                                        {
+                                            <span class="wv-set-row__accent"> · @FormatWeight(set.WeightKg.Value)</span>
+                                        }
+                                    </span>
+                                }
+                                else if (ex.Type == ExerciseType.Timed)
+                                {
+                                    <span class="wv-set-row__value">@FormatDuration(set.DurationSeconds)</span>
+                                }
+                                else
+                                {
+                                    <span class="wv-set-row__value">
+                                        @if (set.DistanceKm.HasValue)
+                                        {
+                                            <span>@FormatDistance(set.DistanceKm.Value)</span>
+                                        }
+                                        @if (set.DurationSeconds.HasValue)
+                                        {
+                                            <span class="wv-set-row__muted"> · @FormatDuration(set.DurationSeconds)</span>
+                                        }
+                                        @if (GetPace(set) is { } pace)
+                                        {
+                                            <span class="wv-set-row__muted"> · @pace</span>
+                                        }
+                                    </span>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(ex.Notes))
+                    {
+                        <div class="wv-ex-card__notes">"@ex.Notes"</div>
+                    }
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private LoggedWorkout? _workout;
+    private bool            _notFound;
+    private bool            _isMetric = true;
+    private bool            _isKm     = true;
+
+    private string WeightUnit   => _isMetric ? "kg" : "lbs";
+    private string DistanceUnit => _isKm ? "km" : "mi";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await WorkoutService.InitializeAsync();
+
+        var unitRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
+        _isMetric = unitRaw != "lbs";
+
+        var distRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
+        _isKm = distRaw != "mi";
+
+        var workouts = await WorkoutService.GetLoggedWorkoutsAsync();
+        _workout = workouts.FirstOrDefault(w => w.Id == Id);
+        if (_workout is null) _notFound = true;
+    }
+
+    // ── Display formatters ────────────────────────────────────────────
+
+    private string FormatWeight(double kg)
+    {
+        var v = _isMetric ? kg : Math.Round(kg * 2.20462, 1);
+        return v.ToString("0.##", CultureInfo.InvariantCulture) + "\u00a0" + WeightUnit;
+    }
+
+    private string FormatDistance(double km)
+    {
+        var v = _isKm ? km : Math.Round(km * 0.621371, 3);
+        return v.ToString("0.##", CultureInfo.InvariantCulture) + "\u00a0" + DistanceUnit;
+    }
+
+    private static string FormatDuration(int? totalSeconds)
+    {
+        if (totalSeconds is null or <= 0) return "–";
+        var mins = totalSeconds.Value / 60;
+        var secs = totalSeconds.Value % 60;
+        return mins > 0 ? $"{mins}:{secs:D2}" : $"{secs}s";
+    }
+
+    private string? GetPace(ExerciseSet set)
+    {
+        if (set.DistanceKm is null or <= 0)      return null;
+        if (set.DurationSeconds is null or <= 0) return null;
+        var paceMinPerKm = set.DurationSeconds.Value / 60.0 / set.DistanceKm.Value;
+        var paceDisplay  = _isKm ? paceMinPerKm : paceMinPerKm * 1.60934;
+        var mins = (int)paceDisplay;
+        var secs = (int)Math.Round((paceDisplay - mins) * 60);
+        if (secs == 60) { mins++; secs = 0; }
+        return $"{mins}:{secs:D2}\u00a0/{DistanceUnit}";
+    }
+}
+
+
+

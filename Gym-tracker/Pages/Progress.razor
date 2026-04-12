@@ -65,6 +65,21 @@ else
         </div>
     </div>
 
+    @if (AvailableMuscleGroups.Count > 0)
+    {
+        <div class="progress-filter">
+            <span class="progress-filter__label">Muscle:</span>
+            <button class="progress-filter__btn @(_muscleFilter is null ? "progress-filter__btn--active" : "")"
+                    @onclick="() => _muscleFilter = null">All</button>
+            @foreach (var grp in AvailableMuscleGroups)
+            {
+                var mg = grp;
+                <button class="progress-filter__btn @(_muscleFilter == mg ? "progress-filter__btn--active" : "")"
+                        @onclick="() => _muscleFilter = mg">@mg</button>
+            }
+        </div>
+    }
+
     <div class="progress-sort">
         <span class="progress-sort__label">Sort by:</span>
         <button class="progress-sort__btn @(_sort == "recent" ? "progress-sort__btn--active" : "")" @onclick="SortByRecent">Recent</button>
@@ -243,6 +258,12 @@ else
                             @(_expandedPaceCharts.Contains(s.Name) ? "▲ Hide pace" : "▾ Pace")
                         </button>
                     }
+                    @if (s.Type == ExerciseType.RepsWeight && s.TotalVolumeKg > 0)
+                    {
+                        <button class="progress-chart__toggle" @onclick="() => ToggleVolumeChart(s)">
+                            @(_expandedVolumeCharts.Contains(s.Name) ? "▲ Hide volume" : "▾ Volume")
+                        </button>
+                    }
                     <button class="progress-chart__toggle" @onclick="() => ToggleChart(s)">
                         @(_expandedCharts.Contains(s.Name) ? "▲ Hide chart" : "▾ Chart")
                     </button>
@@ -312,6 +333,39 @@ else
                         <p class="progress-chart__empty">Not enough data for a chart yet.</p>
                     }
                 }
+
+                @if (s.Type == ExerciseType.RepsWeight && _expandedVolumeCharts.Contains(s.Name))
+                {
+                    @if (VolumeChartOf(s.Name).Points.Count >= 1)
+                    {
+                        <div class="progress-chart">
+                            <div class="progress-chart__subtitle">Total volume per session (sets × reps × weight)</div>
+                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg">
+                                <line x1="50" y1="10"  x2="550" y2="10"  class="chart-grid" />
+                                <line x1="50" y1="49"  x2="550" y2="49"  class="chart-grid" />
+                                <line x1="50" y1="87"  x2="550" y2="87"  class="chart-grid" />
+                                <line x1="50" y1="125" x2="550" y2="125" class="chart-grid chart-grid--axis" />
+                                <line x1="50" y1="10"  x2="50"  y2="125" class="chart-grid chart-grid--axis" />
+                                <text x="45" y="14"  class="chart-label" text-anchor="end">@VolumeChartOf(s.Name).YMaxLabel</text>
+                                <text x="45" y="128" class="chart-label" text-anchor="end">@VolumeChartOf(s.Name).YMinLabel</text>
+                                <path d="@VolumeChartOf(s.Name).AreaPath" class="chart-area chart-area--volume" />
+                                <path d="@VolumeChartOf(s.Name).LinePath" class="chart-line chart-line--volume" />
+                                @foreach (var pt in VolumeChartOf(s.Name).Points)
+                                {
+                                    <circle cx="@Fmt(pt.X)" cy="@Fmt(pt.Y)" r="3.5" class="chart-dot chart-dot--volume">
+                                        <title>@pt.DateLabel: @pt.ValueLabel</title>
+                                    </circle>
+                                }
+                                <text x="50"  y="150" class="chart-label" text-anchor="start">@VolumeChartOf(s.Name).FirstDateLabel</text>
+                                <text x="550" y="150" class="chart-label" text-anchor="end">@VolumeChartOf(s.Name).LastDateLabel</text>
+                            </svg>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="progress-chart__empty">Not enough data for a volume chart yet.</p>
+                    }
+                }
             </div>
             }
         }
@@ -323,9 +377,11 @@ else
     private List<WorkoutTemplate>?        _templates;
     private List<ExerciseStat>            _stats             = new();
     private string                        _sort              = "recent";
-    private HashSet<string>               _expandedCharts    = new(StringComparer.OrdinalIgnoreCase);
-    private HashSet<string>               _expandedPaceCharts = new(StringComparer.OrdinalIgnoreCase);
-    private Dictionary<string, ChartData> _chartDataCache    = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>               _expandedCharts       = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>               _expandedPaceCharts   = new(StringComparer.OrdinalIgnoreCase);
+    private HashSet<string>               _expandedVolumeCharts = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, ChartData> _chartDataCache       = new(StringComparer.OrdinalIgnoreCase);
+    private string?                       _muscleFilter;
 
     // ── Weight unit ───────────────────────────────────────────────────
     private bool   _isMetric  = true;
@@ -416,6 +472,29 @@ else
     private void SortByAlpha()    => _sort = "alpha";
     private void SortByTemplate() => _sort = "template";
 
+    // ── Muscle group filter ───────────────────────────────────────────
+
+    private IReadOnlyList<string> AvailableMuscleGroups =>
+        _stats
+            .Where(s => !string.IsNullOrEmpty(s.MuscleGroup))
+            .Select(s => s.MuscleGroup!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(mg => mg)
+            .ToList();
+
+    private IEnumerable<ExerciseStat> FilteredStats => _muscleFilter is null
+        ? SortedStats
+        : SortedStats.Where(s => string.Equals(s.MuscleGroup, _muscleFilter, StringComparison.OrdinalIgnoreCase));
+
+    private string? GetMuscleGroup(string exerciseName)
+    {
+        if (_templates is null) return null;
+        return _templates
+            .SelectMany(t => t.Exercises)
+            .FirstOrDefault(e => string.Equals(e.Name, exerciseName, StringComparison.OrdinalIgnoreCase))
+            ?.MuscleGroup;
+    }
+
     // ── Chart toggle ──────────────────────────────────────────────────
 
     private void ToggleChart(ExerciseStat s)
@@ -437,11 +516,24 @@ else
         }
     }
 
+    private void ToggleVolumeChart(ExerciseStat s)
+    {
+        var key = s.Name + "|volume";
+        if (!_expandedVolumeCharts.Remove(s.Name))
+        {
+            _expandedVolumeCharts.Add(s.Name);
+            _chartDataCache.TryAdd(key, BuildVolumeChartData(s));
+        }
+    }
+
     private ChartData ChartOf(string name) =>
         _chartDataCache.TryGetValue(name, out var cd) ? cd : ChartData.Empty;
 
     private ChartData PaceChartOf(string name) =>
         _chartDataCache.TryGetValue(name + "|pace", out var cd) ? cd : ChartData.Empty;
+
+    private ChartData VolumeChartOf(string name) =>
+        _chartDataCache.TryGetValue(name + "|volume", out var cd) ? cd : ChartData.Empty;
 
     // ── Formatting helpers ───────────────────────────────────────────
 
@@ -614,6 +706,46 @@ else
         }).ToList();
     }
 
+    private ChartData BuildVolumeChartData(ExerciseStat s)
+    {
+        var pts = BuildVolumeChartPoints(s);
+        if (pts.Count == 0) return ChartData.Empty;
+
+        var rawMax    = s.SessionHistory.Where(h => h.Volume.HasValue).Select(h => h.Volume!.Value).DefaultIfEmpty(0d).Max();
+        var firstDate = s.SessionHistory.First().Date.ToString("d MMM");
+        var lastDate  = s.SessionHistory.Last().Date.ToString("d MMM yyyy");
+
+        return new ChartData(pts, BuildLinePath(pts), BuildAreaPath(pts),
+            FormatVolume(rawMax), "0", firstDate, lastDate);
+    }
+
+    private List<ChartPoint> BuildVolumeChartPoints(ExerciseStat s)
+    {
+        var history = s.SessionHistory;
+        if (history.Count == 0) return new();
+
+        var dataPoints = history
+            .Where(h => h.Volume.HasValue && h.Volume.Value > 0)
+            .Select(h => (h.Date, Value: h.Volume!.Value))
+            .ToList();
+        if (dataPoints.Count == 0) return new();
+
+        var rawMax    = dataPoints.Max(p => p.Value);
+        var yMax      = rawMax * 1.1;
+        var minTicks  = dataPoints.Min(p => p.Date.Ticks);
+        var maxTicks  = dataPoints.Max(p => p.Date.Ticks);
+        var tickRange = maxTicks - minTicks;
+
+        return dataPoints.Select((p, i) =>
+        {
+            var x = tickRange > 0
+                ? CL + (double)(p.Date.Ticks - minTicks) / tickRange * CW
+                : (dataPoints.Count > 1 ? CL + (double)i / (dataPoints.Count - 1) * CW : CL + CW / 2);
+            var y = CB - p.Value / yMax * CH;
+            return new ChartPoint(x, y, p.Date.ToString("d MMM yyyy"), FormatVolume(p.Value));
+        }).ToList();
+    }
+
     private static string Fmt(double v) =>
         v.ToString("0.##", CultureInfo.InvariantCulture);
 
@@ -622,7 +754,7 @@ else
     private const double CL = 50d, CR = 550d, CT = 10d, CB = 125d;
     private const double CW = CR - CL, CH = CB - CT;
 
-    private sealed record SessionPoint(DateTime Date, double? Weight, int? Duration, double? Distance, double? Pace);
+    private sealed record SessionPoint(DateTime Date, double? Weight, int? Duration, double? Distance, double? Pace, double? Volume);
     private sealed record ChartPoint(double X, double Y, string DateLabel, string ValueLabel);
 
     private sealed record ChartData(
@@ -807,6 +939,7 @@ else
             return new ExerciseStat
             {
                 Name                = kvp.Key,
+                MuscleGroup         = GetMuscleGroup(kvp.Key),
                 Type                = sessions.First().Ex.Type,
                 SessionCount        = sessions.Count,
                 FirstDate           = sessions.First().Date,
@@ -849,7 +982,10 @@ else
                         .Where(set => set.DistanceKm > 0 && set.DurationSeconds > 0)
                         .Select(set => set.DurationSeconds!.Value / 60.0 / set.DistanceKm!.Value)
                         .DefaultIfEmpty(0d).Min();
-                    return new SessionPoint(s.Date, w > 0 ? w : null, d > 0 ? d : null, dist > 0 ? dist : null, pace > 0 ? pace : null);
+                    var vol  = s.Ex.Sets
+                        .Where(set => set.WeightKg > 0 && set.Reps > 0)
+                        .Sum(set => set.WeightKg!.Value * set.Reps!.Value);
+                    return new SessionPoint(s.Date, w > 0 ? w : null, d > 0 ? d : null, dist > 0 ? dist : null, pace > 0 ? pace : null, vol > 0 ? vol : null);
                 }).ToArray()
             };
         }).ToList();
@@ -860,6 +996,7 @@ else
     private sealed class ExerciseStat
     {
         public string       Name                { get; init; } = "";
+        public string?      MuscleGroup         { get; init; }
         public ExerciseType Type                { get; init; }
         public int          SessionCount        { get; init; }
         public DateTime     FirstDate           { get; init; }
@@ -963,14 +1100,17 @@ else
 
     private IEnumerable<StatGroup> AllGroups => _sort == "template"
         ? TemplateGroups
-        : new[] { new StatGroup("", SortedStats.ToList()) };
+        : new[] { new StatGroup("", FilteredStats.ToList()) };
 
     private IEnumerable<StatGroup> TemplateGroups
     {
         get
         {
             var groups = new Dictionary<string, List<ExerciseStat>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var s in _stats)
+            var source = _muscleFilter is null
+                ? _stats
+                : _stats.Where(s => string.Equals(s.MuscleGroup, _muscleFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+            foreach (var s in source)
             {
                 var tName = PrimaryTemplateName(s.Name);
                 if (!groups.TryGetValue(tName, out var list))

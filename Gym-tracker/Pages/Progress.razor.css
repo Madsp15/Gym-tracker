@@ -284,6 +284,68 @@
     background: linear-gradient(90deg, #1a8c6e, #0d6e55);
 }
 
+/* ── Volume chart (orange) ─────────────────────────────── */
+
+.chart-area--volume {
+    fill: rgba(224, 112, 0, 0.10);
+    stroke: none;
+}
+
+.chart-line--volume {
+    fill: none;
+    stroke: #e07030;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.chart-dot--volume {
+    fill: #e07030;
+    stroke: #192033;
+    stroke-width: 2;
+}
+
+/* ── Muscle-group filter bar ────────────────────────────── */
+
+.progress-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 640px;
+    margin: 0 auto 0.6rem;
+    padding: 0 1rem;
+    flex-wrap: wrap;
+}
+
+.progress-filter__label {
+    font-size: 0.78rem;
+    color: #7d90b5;
+    margin-right: 0.1rem;
+}
+
+.progress-filter__btn {
+    background: #192033;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 1rem;
+    padding: 0.25rem 0.8rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
+}
+
+.progress-filter__btn:hover {
+    background: #1e2a44;
+    color: #D0DCF1;
+}
+
+.progress-filter__btn--active {
+    background: #2F57A0;
+    border-color: #2F57A0;
+    color: #fff;
+}
+
 /* ── Chart toggle button ───────────────────────────────── */
 
 .progress-chart__toggle {
