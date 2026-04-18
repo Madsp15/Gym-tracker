@@ -10,8 +10,16 @@ self.addEventListener('install', event => event.waitUntil(onInstall(event)));
 self.addEventListener('activate', event => event.waitUntil(onActivate(event)));
 self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
+// User-gated update: don't auto-skip-waiting. The page posts
+// { type: 'SKIP_WAITING' } when the user clicks the "Reload to update"
+// button in the in-app UpdateBanner.
+self.addEventListener('message', event => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+});
+
 async function onInstall() {
-    self.skipWaiting();
     const assetsRequests = self.assetsManifest.assets
         .filter(asset => offlineAssetsInclude.some(p => p.test(asset.url)))
         .filter(asset => !offlineAssetsExclude.some(p => p.test(asset.url)))

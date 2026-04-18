@@ -1,0 +1,92 @@
+﻿.update-banner {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 4.5rem; /* sits above PwaInstallBanner when both visible */
+    z-index: 410;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: #192033;
+    border-top: 2px solid #6A5BC2;
+    padding: 0.7rem 1.1rem;
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.55);
+    flex-wrap: wrap;
+}
+
+/* When no install banner is below, sit flush at the bottom */
+@media (max-width: 1px) { /* placeholder for future logic */ }
+
+.update-banner--info {
+    border-top-color: #2F57A0;
+}
+
+.update-banner--success {
+    border-top-color: #3aa66a;
+}
+
+.update-banner__icon,
+.update-banner__spinner {
+    flex-shrink: 0;
+    font-size: 1.2rem;
+}
+
+.update-banner__spinner {
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 2px solid #283a5a;
+    border-top-color: #6A5BC2;
+    border-radius: 50%;
+    animation: update-spin 0.9s linear infinite;
+}
+
+@keyframes update-spin {
+    to { transform: rotate(360deg); }
+}
+
+.update-banner__text {
+    flex: 1;
+    font-size: 0.88rem;
+    color: #D0DCF1;
+    min-width: 0;
+}
+
+.update-banner__action {
+    flex-shrink: 0;
+    background: #6A5BC2;
+    border: none;
+    border-radius: 0.5rem;
+    color: #fff;
+    font-size: 0.83rem;
+    font-weight: 700;
+    padding: 0.4rem 1rem;
+    cursor: pointer;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+}
+
+.update-banner__action:hover {
+    background: #7b6dd4;
+}
+
+.update-banner__dismiss {
+    flex-shrink: 0;
+    background: transparent;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 50%;
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.12s, color 0.12s;
+}
+
+.update-banner__dismiss:hover {
+    background: #283a5a;
+    color: #D0DCF1;
+}
+

@@ -2,6 +2,9 @@ window.gymTracker = (() => {
     let _db = null;
     let _handle = null;
     let _installPromptEvent = null;
+    let _swRegistration = null;
+    let _updateState = null;          // 'downloading' | 'ready' | null
+    let _updateListener = null;       // .NET object reference
 
     // Capture install prompt as early as possible
     window.addEventListener('beforeinstallprompt', (e) => {
@@ -188,6 +191,81 @@ window.gymTracker = (() => {
         clickById(id) {
             const el = document.getElementById(id);
             if (el) el.click();
+        },
+
+        // ── Service-worker update lifecycle ───────────────────────────
+        // Called from index.html once the SW is registered. Watches for
+        // a new worker installing and notifies the .NET listener.
+        attachServiceWorker(reg) {
+            if (!reg) return;
+            _swRegistration = reg;
+
+            const watchInstalling = (worker) => {
+                if (!worker) return;
+                _setUpdateState('downloading');
+                worker.addEventListener('statechange', () => {
+                    if (worker.state === 'installed') {
+                        // Only counts as a real update when there is already
+                        // an active controller (i.e. not the first install).
+                        if (navigator.serviceWorker.controller) {
+                            _setUpdateState('ready');
+                        } else {
+                            _setUpdateState(null);
+                        }
+                    }
+                });
+            };
+
+            // A worker may already be waiting/installing when we attach
+            if (reg.waiting && navigator.serviceWorker.controller) {
+                _setUpdateState('ready');
+            }
+            if (reg.installing) {
+                watchInstalling(reg.installing);
+            }
+
+            reg.addEventListener('updatefound', () => watchInstalling(reg.installing));
+        },
+
+        // The Razor banner registers itself here so we can call back into
+        // .NET whenever the SW lifecycle progresses.
+        registerUpdateListener(dotNetRef) {
+            _updateListener = dotNetRef;
+            // Replay current state so a late subscriber still gets the banner
+            if (_updateState) {
+                _notifyUpdate(_updateState);
+            }
+            // And surface the post-reload "just updated" flag once
+            const justApplied = sessionStorage.getItem('gym_tracker_update_just_applied');
+            if (justApplied === '1') {
+                sessionStorage.removeItem('gym_tracker_update_just_applied');
+                _notifyUpdate('activated');
+            }
+        },
+
+        unregisterUpdateListener() {
+            _updateListener = null;
+        },
+
+        // Apply the pending update: post SKIP_WAITING to the waiting worker
+        // and let the controllerchange handler in index.html reload the page.
+        applyUpdate() {
+            if (!_swRegistration || !_swRegistration.waiting) return false;
+            sessionStorage.setItem('gym_tracker_update_requested', '1');
+            _swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            return true;
         }
     };
+
+    function _setUpdateState(state) {
+        _updateState = state;
+        if (state) _notifyUpdate(state);
+    }
+
+    function _notifyUpdate(state) {
+        if (!_updateListener) return;
+        try {
+            _updateListener.invokeMethodAsync('OnUpdateEvent', state);
+        } catch { /* listener disposed */ }
+    }
 })();

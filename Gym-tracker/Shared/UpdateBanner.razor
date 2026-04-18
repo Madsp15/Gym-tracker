@@ -1,0 +1,111 @@
+﻿@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (_state == State.Downloading)
+{
+    <div class="update-banner update-banner--info" role="status" aria-live="polite">
+        <span class="update-banner__spinner" aria-hidden="true"></span>
+        <span class="update-banner__text">Downloading update…</span>
+    </div>
+}
+else if (_state == State.Ready)
+{
+    <div class="update-banner update-banner--ready" role="alert" aria-live="assertive">
+        <span class="update-banner__icon" aria-hidden="true">⬆️</span>
+        <span class="update-banner__text">A new version is ready.</span>
+        <button class="update-banner__action" @onclick="ApplyAsync">Reload to update</button>
+        <button class="update-banner__dismiss" @onclick="Dismiss" aria-label="Dismiss update prompt">✕</button>
+    </div>
+}
+else if (_state == State.Activated)
+{
+    <div class="update-banner update-banner--success" role="status" aria-live="polite">
+        <span class="update-banner__icon" aria-hidden="true">✓</span>
+        <span class="update-banner__text">Updated to the latest version.</span>
+    </div>
+}
+
+@code {
+    private enum State { None, Downloading, Ready, Activated }
+
+    private State _state = State.None;
+    private DotNetObjectReference<UpdateBanner>? _selfRef;
+    private CancellationTokenSource? _autoDismissCts;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _selfRef = DotNetObjectReference.Create(this);
+        try
+        {
+            await JS.InvokeVoidAsync("gymTracker.registerUpdateListener", _selfRef);
+        }
+        catch { /* JS not ready / prerender — ignore */ }
+    }
+
+    [JSInvokable]
+    public Task OnUpdateEvent(string state)
+    {
+        var newState = state switch
+        {
+            "downloading" => State.Downloading,
+            "ready"       => State.Ready,
+            "activated"   => State.Activated,
+            _             => State.None
+        };
+
+        // 'ready' must not be overwritten by a stale 'downloading' event
+        if (_state == State.Ready && newState == State.Downloading) return Task.CompletedTask;
+
+        _state = newState;
+        StateHasChanged();
+
+        if (newState == State.Activated)
+        {
+            ScheduleAutoDismiss();
+        }
+        return Task.CompletedTask;
+    }
+
+    private async Task ApplyAsync()
+    {
+        // Set state immediately for instant feedback; the page will reload
+        // momentarily once the new SW takes control.
+        _state = State.Downloading;
+        await JS.InvokeVoidAsync("gymTracker.applyUpdate");
+    }
+
+    private void Dismiss()
+    {
+        _state = State.None;
+    }
+
+    private void ScheduleAutoDismiss()
+    {
+        _autoDismissCts?.Cancel();
+        _autoDismissCts = new CancellationTokenSource();
+        var token = _autoDismissCts.Token;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(4000, token);
+                if (!token.IsCancellationRequested && _state == State.Activated)
+                {
+                    _state = State.None;
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (TaskCanceledException) { }
+        });
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _autoDismissCts?.Cancel();
+        try { await JS.InvokeVoidAsync("gymTracker.unregisterUpdateListener"); }
+        catch { /* page unloading */ }
+        _selfRef?.Dispose();
+    }
+}
+

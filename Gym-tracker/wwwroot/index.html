@@ -47,7 +47,26 @@
     <script src="js/fileStorage.js"></script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
     <script>
-        navigator.serviceWorker.register('service-worker.js');
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('service-worker.js').then(reg => {
+                window.gymTracker?.attachServiceWorker(reg);
+            }).catch(() => { /* registration failed — ignore */ });
+
+            // When the new SW takes control, reload exactly once so the page
+            // is served by the freshly-activated cache.
+            let _reloaded = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (_reloaded) return;
+                _reloaded = true;
+                // Only reload if the user actually requested the update via the banner;
+                // otherwise (first install on a fresh tab) just notify listeners.
+                if (sessionStorage.getItem('gym_tracker_update_requested') === '1') {
+                    sessionStorage.removeItem('gym_tracker_update_requested');
+                    sessionStorage.setItem('gym_tracker_update_just_applied', '1');
+                    window.location.reload();
+                }
+            });
+        }
     </script>
 </body>
 

@@ -129,6 +129,14 @@ Shown once per session at the bottom of every page (rendered from `MainLayout`).
 - **iOS Safari**: shows manual "tap Share → Add to Home Screen" instructions.
 - Hidden if the app is already running in standalone mode, or if the user dismissed it this session (`sessionStorage` key `pwa_banner_dismissed`).
 
+#### `UpdateBanner`
+Rendered from `MainLayout` (above `PwaInstallBanner`). Surfaces the **service-worker update lifecycle** as user-gated, in-app feedback. Three states, driven by `gymTracker.registerUpdateListener` callbacks:
+- **Downloading** — purple-spinner toast while a new SW is installing assets.
+- **Ready** — purple "Reload to update" button. Click → `gymTracker.applyUpdate()` posts `SKIP_WAITING` to the waiting worker; the `controllerchange` handler in `index.html` then reloads the page exactly once.
+- **Activated** — green ✓ "Updated to the latest version" toast that auto-dismisses after 4 s. Triggered post-reload by reading the `gym_tracker_update_just_applied` `sessionStorage` flag set by `index.html` immediately before `location.reload()`.
+
+The update flow is **user-gated** by design: `service-worker.published.js` no longer calls `self.skipWaiting()` on install; it only does so in response to a `{ type: 'SKIP_WAITING' }` message from the page. This guarantees that an in-progress workout is never interrupted by a forced reload.
+
 #### `ExerciseAutocomplete`
 Wraps a text `<input>` with a debounced dropdown powered by `WgerService`. Used in `TemplateEdit` for the exercise name field.
 
@@ -172,6 +180,10 @@ Defined in `wwwroot/js/fileStorage.js`. Called via `IJSRuntime`:
 | `gymTracker.isIos()` | `bool` | `true` on iPhone/iPad (no `beforeinstallprompt` support) |
 | `gymTracker.isInstallable()` | `bool` | `true` if a `beforeinstallprompt` event was captured and app is not yet installed |
 | `gymTracker.showInstallPrompt()` | `string` | Triggers the browser install prompt; returns `'accepted'` or `'dismissed'` |
+| `gymTracker.attachServiceWorker(reg)` | – | Called from `index.html` after `navigator.serviceWorker.register`; wires `updatefound`/`statechange` listeners |
+| `gymTracker.registerUpdateListener(dotNetRef)` | – | Subscribes a `DotNetObjectReference` (with `[JSInvokable] OnUpdateEvent(string)`) to SW lifecycle events; replays the current state immediately so late subscribers (e.g. `UpdateBanner` after Blazor boot) still see a pending update |
+| `gymTracker.unregisterUpdateListener()` | – | Drops the current update listener (called from `UpdateBanner.DisposeAsync`) |
+| `gymTracker.applyUpdate()` | `bool` | Posts `{ type: 'SKIP_WAITING' }` to the waiting service worker; sets `sessionStorage` flag `gym_tracker_update_requested`. The `controllerchange` handler in `index.html` then sets `gym_tracker_update_just_applied` and reloads the page once. |
 
 ### Template → Workout flow
 1. `/workouts/log` shows a **template picker** (card grid). Picking a template or using the deep-link route calls `ApplyTemplate`.
@@ -264,3 +276,5 @@ When adding new range-scoped stats, derive them from `WorkoutsInRange` (or direc
 | `Gym-tracker/Shared/MuscleBodyDiagram.razor.css` | Scoped styles: diagram layout, region hover/active states, label |
 | `Gym-tracker/Shared/PwaInstallBanner.razor` | PWA install prompt shown once per session; Chrome/Edge shows "Install app" button; iOS shows manual Share→Add instructions |
 | `Gym-tracker/Shared/PwaInstallBanner.razor.css` | Scoped styles: fixed bottom banner with purple top border |
+| `Gym-tracker/Shared/UpdateBanner.razor` | Service-worker update feedback (downloading / ready / activated); user-gated reload via `gymTracker.applyUpdate` |
+| `Gym-tracker/Shared/UpdateBanner.razor.css` | Scoped styles: fixed banner above `PwaInstallBanner`, spinner animation, success/info variants |
