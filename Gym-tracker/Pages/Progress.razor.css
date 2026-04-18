@@ -542,3 +542,135 @@
     padding: 0.15rem 0.6rem;
     white-space: nowrap;
 }
+
+/* ── Date-range chips (above filter/sort) ───────────────── */
+
+.progress-range {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    max-width: 640px;
+    margin: 0 auto 0.6rem;
+    padding: 0 1rem;
+    flex-wrap: wrap;
+}
+
+.progress-range__label {
+    font-size: 0.78rem;
+    color: #7d90b5;
+    margin-right: 0.1rem;
+}
+
+.progress-range__btn {
+    background: #192033;
+    border: 1px solid #283a5a;
+    color: #7d90b5;
+    border-radius: 1rem;
+    padding: 0.25rem 0.8rem;
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.progress-range__btn:hover {
+    background: #1e2a44;
+    color: #D0DCF1;
+}
+
+.progress-range__btn--active {
+    background: #6A5BC2;
+    border-color: #6A5BC2;
+    color: #fff;
+}
+
+/* ── Activity heatmap (collapsible) ─────────────────────── */
+
+.progress-heatmap {
+    max-width: 640px;
+    margin: 0 auto 0.9rem;
+    padding: 0 1rem;
+}
+
+.progress-heatmap__summary {
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: #7d90b5;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid #283a5a;
+    border-radius: 0.5rem;
+    background: #0f1420;
+    list-style: none;
+}
+
+.progress-heatmap__summary::-webkit-details-marker { display: none; }
+.progress-heatmap__summary::before {
+    content: "▾ ";
+    color: #4a5a78;
+}
+
+.progress-heatmap[open] .progress-heatmap__summary::before { content: "▴ "; }
+
+.progress-heatmap__wrap {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #0f1420;
+    border: 1px solid #283a5a;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+}
+
+.progress-heatmap__svg {
+    display: block;
+    min-width: 720px;
+    height: auto;
+}
+
+.heatmap-cell             { fill: #1a2438; stroke: #0f1420; stroke-width: 0.5; }
+.heatmap-cell--lvl0       { fill: #1a2438; }
+.heatmap-cell--lvl1       { fill: #2d2660; }
+.heatmap-cell--lvl2       { fill: #463aa3; }
+.heatmap-cell--lvl3       { fill: #6A5BC2; }
+.heatmap-cell--lvl4       { fill: #9e94e8; }
+
+.progress-heatmap__legend {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+    font-size: 0.7rem;
+    color: #7d90b5;
+}
+
+.heatmap-legend {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+}
+
+/* ── Empty state inside progress-cards ──────────────────── */
+
+.progress-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: #0f1420;
+    border: 1px dashed #283a5a;
+    border-radius: 0.65rem;
+    padding: 1rem;
+    color: #7d90b5;
+    font-size: 0.85rem;
+}
+
+.progress-empty__icon { font-size: 1.1rem; }
+
+/* ── PR badge (real bests) ──────────────────────────────── */
+
+.progress-card__pr-badge {
+    font-size: 0.72rem;
+    color: #f4c542;
+    font-weight: 600;
+    margin-right: 0.3rem;
+}

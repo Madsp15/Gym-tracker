@@ -25,13 +25,17 @@ else
                     <span class="settings-row__label">Save location</span>
                     <span class="settings-row__desc">@StorageModeText</span>
                 </div>
-                @if (WorkoutService.IsFileApiSupported && !WorkoutService.NeedsFileSetup)
+                @if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsPermission)
                 {
-                    <button class="btn btn-sm btn-ghost" @onclick="ChangeFile">Change file…</button>
+                    <button class="btn btn-sm btn-accent" @onclick="ReconnectFile">Reconnect file…</button>
                 }
                 else if (WorkoutService.IsFileApiSupported && WorkoutService.NeedsFileSetup)
                 {
                     <button class="btn btn-sm btn-accent" @onclick="PickFile">Choose file…</button>
+                }
+                else if (WorkoutService.IsFileApiSupported)
+                {
+                    <button class="btn btn-sm btn-ghost" @onclick="ChangeFile">Change file…</button>
                 }
             </div>
 
@@ -51,8 +55,10 @@ else
                 <button class="btn btn-sm btn-ghost" @onclick="TriggerImport">↑ Import</button>
             </div>
 
-            <!-- Hidden file picker – triggered by TriggerImport -->
-            <InputFile id="importFileInput" OnChange="HandleImport" accept=".json" style="display:none" />
+            <!-- Hidden file picker – triggered by TriggerImport.
+                 @key forces a fresh <input> on every cycle so reselecting
+                 the same file fires OnChange again. -->
+            <InputFile @key="_importNonce" id="importFileInput" OnChange="HandleImport" accept=".json" style="display:none" />
 
             @if (_importState == ImportState.Confirm && _importStore is not null)
             {
@@ -118,12 +124,12 @@ else
                     <span class="settings-row__desc">Pre-highlighted when you log a workout</span>
                 </div>
                 <div class="settings-presets">
-                    <button class="settings-preset-btn @(_defaultRestSeconds == 0   ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(0)">Off</button>
-                    <button class="settings-preset-btn @(_defaultRestSeconds == 30  ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(30)">30s</button>
-                    <button class="settings-preset-btn @(_defaultRestSeconds == 60  ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(60)">1m</button>
-                    <button class="settings-preset-btn @(_defaultRestSeconds == 90  ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(90)">90s</button>
-                    <button class="settings-preset-btn @(_defaultRestSeconds == 120 ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(120)">2m</button>
-                    <button class="settings-preset-btn @(_defaultRestSeconds == 180 ? "settings-preset-btn--active" : "")" @onclick="() => SetDefaultRest(180)">3m</button>
+                    @foreach (var p in RestPresets)
+                    {
+                        var seconds = p.Seconds;
+                        <button class="settings-preset-btn @(_defaultRestSeconds == seconds ? "settings-preset-btn--active" : "")"
+                                @onclick="() => SetDefaultRest(seconds)">@p.Label</button>
+                    }
                 </div>
             </div>
 
@@ -133,10 +139,12 @@ else
                     <span class="settings-row__desc">Applied to all weight inputs and progress stats</span>
                 </div>
                 <div class="settings-presets">
-                    <button class="settings-preset-btn @(_weightUnit == "kg"  ? "settings-preset-btn--active" : "")"
-                            @onclick='() => SetWeightUnit("kg")'>kg</button>
-                    <button class="settings-preset-btn @(_weightUnit == "lbs" ? "settings-preset-btn--active" : "")"
-                            @onclick='() => SetWeightUnit("lbs")'>lbs</button>
+                    @foreach (var u in WeightUnits)
+                    {
+                        var unit = u;
+                        <button class="settings-preset-btn @(_weightUnit == unit ? "settings-preset-btn--active" : "")"
+                                @onclick="() => SetWeightUnit(unit)">@unit</button>
+                    }
                 </div>
             </div>
 
@@ -146,10 +154,23 @@ else
                     <span class="settings-row__desc">Applied to all cardio distance inputs, pace, and progress stats</span>
                 </div>
                 <div class="settings-presets">
-                    <button class="settings-preset-btn @(_distanceUnit == "km" ? "settings-preset-btn--active" : "")"
-                            @onclick='() => SetDistanceUnit("km")'>km</button>
-                    <button class="settings-preset-btn @(_distanceUnit == "mi" ? "settings-preset-btn--active" : "")"
-                            @onclick='() => SetDistanceUnit("mi")'>mi</button>
+                    @foreach (var u in DistanceUnits)
+                    {
+                        var unit = u;
+                        <button class="settings-preset-btn @(_distanceUnit == unit ? "settings-preset-btn--active" : "")"
+                                @onclick="() => SetDistanceUnit(unit)">@unit</button>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- ── About ───────────────────────────────────────── -->
+        <div class="settings-section">
+            <h3 class="settings-section__title">About</h3>
+            <div class="settings-row">
+                <div class="settings-row__info">
+                    <span class="settings-row__label">Version</span>
+                    <span class="settings-row__desc" title="@AppVersionFull">Gym Tracker @AppVersion</span>
                 </div>
             </div>
         </div>
@@ -183,58 +204,108 @@ else
             }
         </div>
 
+        @if (_toast is not null)
+        {
+            <p class="settings-status settings-status--ok settings-status--toast">@_toast</p>
+        }
+
     </div>
 }
 
 @code {
+    // ── Version (sourced from <Version> in Gym-tracker.csproj) ────────
+    // The SDK emits AssemblyInformationalVersionAttribute from <Version>;
+    // strip the "+<gitHash>" build-metadata suffix for display.
+    private static readonly string AppVersionFull =
+        typeof(Program).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(Program).Assembly.GetName().Version?.ToString()
+        ?? "0.0.0";
+    private static readonly string AppVersion = AppVersionFull.Split('+')[0];
+
+    // ── Import-validation sanity caps ─────────────────────────────────
+    // Reject obviously bad / hostile backup files. Bump these if real
+    // power-users ever exceed them.
+    private const int MaxTemplates         = 500;
+    private const int MaxLoggedWorkouts    = 10_000;
+    private const int MaxNameLength        = 200;
+    private const int MaxExercisesPerItem  = 200;
+    private const int MaxImportFileBytes   = 10 * 1024 * 1024; // 10 MB
+
+    // ── Preset definitions (single source of truth for the UI lists) ──
+    private static readonly (int Seconds, string Label)[] RestPresets =
+    {
+        (0,   "Off"),
+        (30,  "30s"),
+        (60,  "1m"),
+        (90,  "90s"),
+        (120, "2m"),
+        (180, "3m"),
+    };
+    private static readonly string[] WeightUnits   = { "kg", "lbs" };
+    private static readonly string[] DistanceUnits = { "km", "mi" };
+
+    private const int BannerAutoClearMs = 3000;
+
     private enum ImportState { None, Confirm, Success, Error }
 
-    private int          _defaultRestSeconds = 0;
-    private bool         _confirmClear       = false;
-    private bool         _clearSuccess       = false;
-    private bool         _showInstall        = false;
-    private bool         _isIos              = false;
-    private ImportState  _importState        = ImportState.None;
+    private int           _defaultRestSeconds = 0;
+    private bool          _confirmClear       = false;
+    private bool          _clearSuccess       = false;
+    private bool          _showInstall        = false;
+    private bool          _isIos              = false;
+    private ImportState   _importState        = ImportState.None;
     private WorkoutStore? _importStore;
-    private string?      _importJson;
+    private string?       _importJson;
     private string        _weightUnit         = "kg";
     private string        _distanceUnit       = "km";
+    private Guid          _importNonce        = Guid.NewGuid();
+    private string?       _toast;
+    private Guid          _toastNonce         = Guid.Empty;
+    private Guid          _clearBannerNonce   = Guid.Empty;
+    private Guid          _importBannerNonce  = Guid.Empty;
 
-    private string StorageModeText =>
-        WorkoutService.IsFileApiSupported && !WorkoutService.NeedsFileSetup
-            ? "Saving to file" : "Using browser storage";
+    private string StorageModeText
+    {
+        get
+        {
+            if (!WorkoutService.IsFileApiSupported) return "Using browser storage";
+            if (WorkoutService.NeedsPermission)     return "File access expired – reconnect to resume";
+            if (WorkoutService.NeedsFileSetup)      return "Using browser storage (no file chosen)";
+            return "Saving to file";
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await WorkoutService.InitializeAsync();
+
+        // JS interop is fine here on Blazor WebAssembly (no prerendering),
+        // so loading prefs up-front avoids a frame of wrong-state UI.
+        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_rest_default");
+        if (int.TryParse(raw, out var secs)) _defaultRestSeconds = secs;
+
+        var weightUnit = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
+        if (!string.IsNullOrEmpty(weightUnit)) _weightUnit = weightUnit;
+
+        var distUnit = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
+        if (!string.IsNullOrEmpty(distUnit)) _distanceUnit = distUnit;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
 
-        // Load persisted rest-timer default
-        var raw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_rest_default");
-        if (int.TryParse(raw, out var secs)) _defaultRestSeconds = secs;
-
-        // Load persisted weight unit
-        var weightUnit = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_weight_unit");
-        if (!string.IsNullOrEmpty(weightUnit)) _weightUnit = weightUnit;
-
-        // Load persisted distance unit
-        var distUnit = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
-        if (!string.IsNullOrEmpty(distUnit)) _distanceUnit = distUnit;
-
-        // Check PWA installability
+        // PWA installability does not affect initial layout, so it stays
+        // in OnAfterRenderAsync to keep first render fast.
         var isStandalone = await JS.InvokeAsync<bool>("gymTracker.isInStandaloneMode");
-        if (!isStandalone)
-        {
-            _isIos = await JS.InvokeAsync<bool>("gymTracker.isIos");
-            if (!_isIos)
-                _showInstall = await JS.InvokeAsync<bool>("gymTracker.isInstallable");
-        }
+        if (isStandalone) return;
 
-        StateHasChanged();
+        _isIos = await JS.InvokeAsync<bool>("gymTracker.isIos");
+        if (!_isIos)
+            _showInstall = await JS.InvokeAsync<bool>("gymTracker.isInstallable");
+
+        if (_isIos || _showInstall) StateHasChanged();
     }
 
     // ── Storage ───────────────────────────────────────────────────────
@@ -251,11 +322,26 @@ else
         StateHasChanged();
     }
 
+    private async Task ReconnectFile()
+    {
+        var granted = await WorkoutService.RequestPermissionAsync();
+        if (granted)
+        {
+            // Force a full reload so all open pages re-read from the file.
+            await JS.InvokeVoidAsync("location.reload");
+        }
+        else
+        {
+            StateHasChanged();
+        }
+    }
+
     private async Task ExportJson()
     {
         var json     = await WorkoutService.ExportJsonAsync();
         var filename = $"gym-tracker-{DateTime.Today:yyyy-MM-dd}.json";
         await JS.InvokeVoidAsync("gymTracker.downloadJson", json, filename);
+        _ = ShowToastAsync("✓ Backup downloaded");
     }
 
     private async Task TriggerImport()
@@ -263,6 +349,10 @@ else
         _importState = ImportState.None;
         _importStore = null;
         _importJson  = null;
+        _importNonce = Guid.NewGuid(); // rebuild <InputFile> so re-pick fires OnChange
+        StateHasChanged();
+        // Defer the click one frame so the freshly-keyed input is in the DOM.
+        await Task.Yield();
         await JS.InvokeVoidAsync("gymTracker.clickById", "importFileInput");
     }
 
@@ -271,7 +361,7 @@ else
         _importState = ImportState.None;
         try
         {
-            using var stream = e.File.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using var stream = e.File.OpenReadStream(maxAllowedSize: MaxImportFileBytes);
             using var reader = new System.IO.StreamReader(stream);
             _importJson = await reader.ReadToEndAsync();
             var opts  = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -280,15 +370,20 @@ else
             {
                 _importState = ImportState.Error;
             }
-            else if (store.Templates.Count > 500 || store.LoggedWorkouts.Count > 10_000
-                     || store.Templates.Any(t => (t.Name?.Length ?? 0) > 200 || t.Exercises.Count > 200)
-                     || store.LoggedWorkouts.Any(w => (w.Name?.Length ?? 0) > 200 || w.Exercises.Count > 200))
+            else if (store.Templates.Count > MaxTemplates
+                     || store.LoggedWorkouts.Count > MaxLoggedWorkouts
+                     || store.Templates.Any(t => (t.Name?.Length ?? 0) > MaxNameLength || t.Exercises.Count > MaxExercisesPerItem)
+                     || store.LoggedWorkouts.Any(w => (w.Name?.Length ?? 0) > MaxNameLength || w.Exercises.Count > MaxExercisesPerItem))
             {
                 _importState = ImportState.Error;
             }
             else { _importStore = store; _importState = ImportState.Confirm; }
         }
-        catch { _importState = ImportState.Error; }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[Settings] Import failed: {ex}");
+            _importState = ImportState.Error;
+        }
         StateHasChanged();
     }
 
@@ -299,6 +394,8 @@ else
         _importState = ImportState.Success;
         _importStore = null;
         _importJson  = null;
+        _importNonce = Guid.NewGuid();
+        _ = AutoClearImportBannerAsync();
     }
 
     private void CancelImport()
@@ -306,14 +403,20 @@ else
         _importState = ImportState.None;
         _importStore = null;
         _importJson  = null;
+        _importNonce = Guid.NewGuid();
     }
 
     // ── Install ───────────────────────────────────────────────────────
 
     private async Task InstallPwa()
     {
-        await JS.InvokeAsync<string>("gymTracker.showInstallPrompt");
-        _showInstall = false;
+        var outcome = await JS.InvokeAsync<string>("gymTracker.showInstallPrompt");
+        if (outcome == "accepted")
+        {
+            _showInstall = false;
+            _ = ShowToastAsync("✓ App installed");
+        }
+        // If 'dismissed', leave the row in place so the user can try again.
     }
 
     // ── Preferences ───────────────────────────────────────────────────
@@ -343,6 +446,48 @@ else
         await WorkoutService.ImportAsync("{}");
         _confirmClear = false;
         _clearSuccess = true;
+        _ = AutoClearClearBannerAsync();
+    }
+
+    // ── Transient banner helpers ──────────────────────────────────────
+
+    private async Task ShowToastAsync(string message)
+    {
+        var nonce   = Guid.NewGuid();
+        _toastNonce = nonce;
+        _toast      = message;
+        StateHasChanged();
+        await Task.Delay(BannerAutoClearMs);
+        if (_toastNonce == nonce)
+        {
+            _toast = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AutoClearClearBannerAsync()
+    {
+        var nonce         = Guid.NewGuid();
+        _clearBannerNonce = nonce;
+        StateHasChanged();
+        await Task.Delay(BannerAutoClearMs);
+        if (_clearBannerNonce == nonce && _clearSuccess)
+        {
+            _clearSuccess = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task AutoClearImportBannerAsync()
+    {
+        var nonce          = Guid.NewGuid();
+        _importBannerNonce = nonce;
+        StateHasChanged();
+        await Task.Delay(BannerAutoClearMs);
+        if (_importBannerNonce == nonce && _importState == ImportState.Success)
+        {
+            _importState = ImportState.None;
+            StateHasChanged();
+        }
     }
 }
-

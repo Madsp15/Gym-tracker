@@ -2,6 +2,7 @@ html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     background-color: #0f1420;
     color: #D0DCF1;
+    overscroll-behavior-y: contain;
 }
 
 /* Declare Blazor loading custom properties so CSS linters don't flag them.

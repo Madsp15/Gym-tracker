@@ -63,7 +63,61 @@ else
             <div class="progress-highlights__value">@FavouriteDay</div>
             <div class="progress-highlights__label">Favourite day</div>
         </div>
+        <div class="progress-highlights__chip" title="Consecutive weeks containing at least one workout (counted up to this week or last week)">
+            <div class="progress-highlights__value">@CurrentStreakWeeks<span class="progress-highlights__unit"> wk</span></div>
+            <div class="progress-highlights__label">Current streak</div>
+        </div>
+        <div class="progress-highlights__chip" title="Longest run of consecutive weeks with a workout">
+            <div class="progress-highlights__value">@LongestStreakWeeks<span class="progress-highlights__unit"> wk</span></div>
+            <div class="progress-highlights__label">Best streak</div>
+        </div>
     </div>
+
+    <div class="progress-range">
+        <span class="progress-range__label">Range:</span>
+        @foreach (var r in RangePresets)
+        {
+            var days = r.Days;
+            <button class="progress-range__btn @(_rangeDays == days ? "progress-range__btn--active" : "")"
+                    @onclick="() => SetRange(days)">@r.Label</button>
+        }
+    </div>
+
+    <details class="progress-heatmap">
+        <summary class="progress-heatmap__summary">Activity heatmap (last 53 weeks)</summary>
+        <div class="progress-heatmap__wrap">
+            <svg viewBox="0 0 750 105" xmlns="http://www.w3.org/2000/svg" class="progress-heatmap__svg"
+                 role="img" aria-label="Workout activity heatmap, one cell per day for the last 53 weeks">
+                <title>Workout activity heatmap</title>
+                @{
+                    var cells = HeatCells;
+                    const int cell = 12, gap = 2;
+                    int col = 0;
+                }
+                @for (int i = 0; i < cells.Count; i++)
+                {
+                    var c   = cells[i];
+                    var row = ((int)c.Date.DayOfWeek + 6) % 7; // Monday-first
+                    var x   = col * (cell + gap);
+                    var y   = row * (cell + gap);
+                    <rect x="@x" y="@y" width="@cell" height="@cell" rx="2"
+                          class="heatmap-cell heatmap-cell--lvl@(HeatLevel(c.Count))">
+                        <title>@c.Date.ToString("ddd d MMM yyyy"): @c.Count workout@(c.Count == 1 ? "" : "s")</title>
+                    </rect>
+                    if (row == 6) { col++; }
+                }
+            </svg>
+            <div class="progress-heatmap__legend">
+                <span>Less</span>
+                <span class="heatmap-legend heatmap-cell--lvl0"></span>
+                <span class="heatmap-legend heatmap-cell--lvl1"></span>
+                <span class="heatmap-legend heatmap-cell--lvl2"></span>
+                <span class="heatmap-legend heatmap-cell--lvl3"></span>
+                <span class="heatmap-legend heatmap-cell--lvl4"></span>
+                <span>More</span>
+            </div>
+        </div>
+    </details>
 
     @if (AvailableMuscleGroups.Count > 0)
     {
@@ -89,6 +143,13 @@ else
     </div>
 
     <div class="progress-cards">
+        @if (!AllGroups.Any(g => g.Stats.Count > 0))
+        {
+            <div class="progress-empty">
+                <span class="progress-empty__icon">🔍</span>
+                <span class="progress-empty__text">No exercises match the current filters.</span>
+            </div>
+        }
         @foreach (var group in AllGroups)
         {
             @if (!string.IsNullOrEmpty(group.Name))
@@ -112,9 +173,13 @@ else
                     <span class="progress-card__meta">@DaysSinceText(s.LastDate)</span>
                     <span class="progress-card__meta">
                         @s.SessionCount session@(s.SessionCount == 1 ? "" : "s")
+                        @if (s.PrCount > 0)
+                        {
+                            <span class="progress-card__pr-badge" title="Sessions that beat all previous bests">🏆 ×@s.PrCount</span>
+                        }
                         @if (s.PoCount > 0)
                         {
-                            <span class="progress-card__po-badge">🏆 ×@s.PoCount</span>
+                            <span class="progress-card__po-badge" title="Sessions you flagged as progressive overload">PO ×@s.PoCount</span>
                         }
                     </span>
                 </div>
@@ -275,7 +340,9 @@ else
                     {
                         <div class="progress-chart">
                             <div class="progress-chart__subtitle">Pace over time · lower = faster</div>
-                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg">
+                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg"
+                                 role="img" aria-label="Pace over time for @s.Name">
+                                <title>@s.Name – pace over time</title>
                                 <line x1="50" y1="10"  x2="550" y2="10"  class="chart-grid" />
                                 <line x1="50" y1="49"  x2="550" y2="49"  class="chart-grid" />
                                 <line x1="50" y1="87"  x2="550" y2="87"  class="chart-grid" />
@@ -307,7 +374,9 @@ else
                     @if (ChartOf(s.Name).Points.Count >= 1)
                     {
                         <div class="progress-chart">
-                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg">
+                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg"
+                                 role="img" aria-label="Best metric per session for @s.Name">
+                                <title>@s.Name – best metric per session</title>
                                 <line x1="50" y1="10"  x2="550" y2="10"  class="chart-grid" />
                                 <line x1="50" y1="49"  x2="550" y2="49"  class="chart-grid" />
                                 <line x1="50" y1="87"  x2="550" y2="87"  class="chart-grid" />
@@ -340,7 +409,9 @@ else
                     {
                         <div class="progress-chart">
                             <div class="progress-chart__subtitle">Total volume per session (sets × reps × weight)</div>
-                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg">
+                            <svg viewBox="0 0 560 165" xmlns="http://www.w3.org/2000/svg" class="progress-chart__svg"
+                                 role="img" aria-label="Total volume per session for @s.Name">
+                                <title>@s.Name – volume per session</title>
                                 <line x1="50" y1="10"  x2="550" y2="10"  class="chart-grid" />
                                 <line x1="50" y1="49"  x2="550" y2="49"  class="chart-grid" />
                                 <line x1="50" y1="87"  x2="550" y2="87"  class="chart-grid" />
@@ -390,6 +461,123 @@ else
     // ── Distance unit ─────────────────────────────────────────────────
     private bool   _isKm        = true;
     private string DistanceUnit => _isKm ? "km" : "mi";
+
+    // ── Date range filter ─────────────────────────────────────────────
+    // 0 = all time. Persisted in localStorage under gym_tracker_progress_range.
+    private int _rangeDays = 0;
+
+    private static readonly (int Days, string Label)[] RangePresets =
+    {
+        (30,  "30d"),
+        (90,  "90d"),
+        (365, "1y"),
+        (0,   "All"),
+    };
+
+    private List<LoggedWorkout> WorkoutsInRange
+    {
+        get
+        {
+            if (_workouts is null) return new();
+            if (_rangeDays <= 0) return _workouts;
+            var cutoff = DateTime.Today.AddDays(-_rangeDays);
+            return _workouts.Where(w => w.Date.Date >= cutoff).ToList();
+        }
+    }
+
+    private async Task SetRange(int days)
+    {
+        if (_rangeDays == days) return;
+        _rangeDays = days;
+        await JS.InvokeVoidAsync("localStorage.setItem", "gym_tracker_progress_range", days.ToString());
+        // Stats are derived from the current range, so rebuild and drop cached charts.
+        _chartDataCache.Clear();
+        _expandedCharts.Clear();
+        _expandedPaceCharts.Clear();
+        _expandedVolumeCharts.Clear();
+        BuildStats();
+    }
+
+    // ── Streaks (consecutive ISO weeks containing ≥1 workout) ────────
+
+    private int CurrentStreakWeeks => ComputeStreaks().Current;
+    private int LongestStreakWeeks => ComputeStreaks().Longest;
+
+    private (int Current, int Longest) ComputeStreaks()
+    {
+        if (_workouts is null || _workouts.Count == 0) return (0, 0);
+
+        // Set of (Year, ISO week) buckets that contain at least one workout.
+        var weeks = _workouts
+            .Select(w => MondayOf(w.Date))
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+        if (weeks.Count == 0) return (0, 0);
+
+        int longest = 1, run = 1;
+        for (int i = 1; i < weeks.Count; i++)
+        {
+            if ((weeks[i] - weeks[i - 1]).TotalDays == 7) run++;
+            else run = 1;
+            if (run > longest) longest = run;
+        }
+
+        // Current = run anchored to the week of today (or last week, to avoid breaking on Monday).
+        var currentWeek  = MondayOf(DateTime.Today);
+        var previousWeek = currentWeek.AddDays(-7);
+        var anchor       = weeks.Last();
+        int current = 0;
+        if (anchor == currentWeek || anchor == previousWeek)
+        {
+            current = 1;
+            for (int i = weeks.Count - 1; i > 0; i--)
+            {
+                if ((weeks[i] - weeks[i - 1]).TotalDays == 7) current++;
+                else break;
+            }
+        }
+        return (current, longest);
+    }
+
+    private static DateTime MondayOf(DateTime d)
+    {
+        var date           = d.Date;
+        var daysFromMonday = ((int)date.DayOfWeek + 6) % 7;
+        return date.AddDays(-daysFromMonday);
+    }
+
+    // ── Activity heatmap (last 53 weeks, GitHub-style) ────────────────
+
+    private sealed record HeatCell(DateTime Date, int Count);
+
+    private IReadOnlyList<HeatCell> HeatCells
+    {
+        get
+        {
+            if (_workouts is null) return Array.Empty<HeatCell>();
+            var counts = _workouts
+                .GroupBy(w => w.Date.Date)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            // 53 columns × 7 rows ending on Sunday of the current week.
+            var endSunday = MondayOf(DateTime.Today).AddDays(6);
+            var start     = endSunday.AddDays(-(53 * 7) + 1);
+            var cells     = new List<HeatCell>(53 * 7);
+            for (var d = start; d <= endSunday; d = d.AddDays(1))
+                cells.Add(new HeatCell(d, counts.TryGetValue(d, out var c) ? c : 0));
+            return cells;
+        }
+    }
+
+    private static int HeatLevel(int count) => count switch
+    {
+        0   => 0,
+        1   => 1,
+        2   => 2,
+        3   => 3,
+        _   => 4
+    };
 
     // ── Global summary computed properties ───────────────────────────
 
@@ -853,6 +1041,9 @@ else
         _isMetric = unitRaw != "lbs";
         var distRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_distance_unit");
         _isKm = distRaw != "mi";
+        var rangeRaw = await JS.InvokeAsync<string?>("localStorage.getItem", "gym_tracker_progress_range");
+        if (int.TryParse(rangeRaw, out var rd) && (rd == 0 || rd == 30 || rd == 90 || rd == 365))
+            _rangeDays = rd;
         BuildStats();
     }
 
@@ -860,11 +1051,14 @@ else
     {
         if (_workouts is null) return;
 
+        // Apply the active date-range filter so all per-exercise stats reflect it.
+        var sourceWorkouts = WorkoutsInRange;
+
         // Group every LoggedExercise across all workouts by exercise name
         var byName = new Dictionary<string, List<(DateTime Date, LoggedExercise Ex)>>(
             StringComparer.OrdinalIgnoreCase);
 
-        foreach (var workout in _workouts)
+        foreach (var workout in sourceWorkouts)
         {
             foreach (var ex in workout.Exercises)
             {
@@ -936,6 +1130,31 @@ else
             double? latestBestPace  = paceSessions.Count > 0 ? paceSessions.Last().Pace               : null;
             double? allTimeBestPace = paceSessions.Count > 0 ? paceSessions.Min(x => x.Pace)          : null;
 
+            // ── Real PR count ────────────────────────────────────────
+            // A session is a PR if its best metric strictly beats every previous
+            // session's best (lower for pace, higher for everything else).
+            int prCount  = 0;
+            double bestW = 0, bestDist = 0; int bestDur = 0; double bestPaceLow = double.MaxValue;
+            bool anyW = false, anyDist = false, anyDur = false, anyPace = false;
+            foreach (var s in sessions)
+            {
+                var w = s.Ex.Sets.Where(x => x.WeightKg.HasValue).Select(x => x.WeightKg!.Value).DefaultIfEmpty(0d).Max();
+                var d = s.Ex.Sets.Where(x => x.DurationSeconds.HasValue).Select(x => x.DurationSeconds!.Value).DefaultIfEmpty(0).Max();
+                var dist = s.Ex.Sets.Sum(x => x.DistanceKm ?? 0);
+                var pace = s.Ex.Sets
+                    .Where(x => x.DistanceKm > 0 && x.DurationSeconds > 0)
+                    .Select(x => x.DurationSeconds!.Value / 60.0 / x.DistanceKm!.Value)
+                    .DefaultIfEmpty(0d).Min();
+
+                bool pr = false;
+                if (w    > 0       && (!anyW    || w    > bestW))       { pr = true; bestW = w; anyW = true; }
+                else if (w    > 0  && !anyW)                              { anyW = true; bestW = w; }
+                if (d    > 0       && (!anyDur  || d    > bestDur))     { pr = true; bestDur = d; anyDur = true; }
+                if (dist > 0       && (!anyDist || dist > bestDist))    { pr = true; bestDist = dist; anyDist = true; }
+                if (pace > 0       && (!anyPace || pace < bestPaceLow)) { pr = true; bestPaceLow = pace; anyPace = true; }
+                if (pr) prCount++;
+            }
+
             return new ExerciseStat
             {
                 Name                = kvp.Key,
@@ -960,6 +1179,7 @@ else
                 TotalSets           = sessions.Sum(s => s.Ex.Sets.Count),
                 TotalReps           = sessions.Sum(s => s.Ex.Sets.Sum(set => set.Reps ?? 0)),
                 PoCount             = sessions.Count(s => s.Ex.ProgressiveOverload),
+                PrCount             = prCount,
                 BestEstimated1RM    = sessions
                     .SelectMany(s => s.Ex.Sets)
                     .Where(set => set.WeightKg > 0 && set.Reps > 0)
@@ -1017,6 +1237,7 @@ else
         public int          TotalSets           { get; init; }
         public int          TotalReps           { get; init; }
         public int          PoCount             { get; init; }
+        public int          PrCount             { get; init; }
         public double?      BestEstimated1RM    { get; init; }
         public double       TotalVolumeKg       { get; init; }
         public IReadOnlyList<SessionPoint> SessionHistory { get; init; } = Array.Empty<SessionPoint>();

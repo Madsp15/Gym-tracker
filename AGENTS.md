@@ -1,7 +1,7 @@
 # Gym Tracker – Agent Guide
 
 ## Project Overview
-Blazor WebAssembly PWA targeting **.NET 10** (single project, no backend). Users log workouts, track progress, and manage goals—all client-side. The Home page (`/`) has three cards: **Templates** and **Logged Workouts** are fully implemented; **Progress** remains a placeholder.
+Blazor WebAssembly PWA targeting **.NET 10** (single project, no backend). Users log workouts, track progress, and manage goals—all client-side. The Home page (`/`) has three cards: **Templates**, **Logged Workouts**, and **Progress** — all fully implemented.
 
 ## Architecture
 ```
@@ -46,8 +46,8 @@ There is no API server or database. All data is persisted client-side by `Workou
 | `/workouts/log` | `Pages/LogWorkout.razor` | Template picker → log new workout |
 | `/workouts/log/{templateId:guid}` | `Pages/LogWorkout.razor` | Deep-link: start workout directly from a specific template |
 | `/workouts/{id:guid}` | `Pages/LogWorkout.razor` | Edit existing logged workout |
-| `/progress` | `Pages/Progress.razor` | Per-exercise stats, charts, and global summary |
-| `/settings` | `Pages/Settings.razor` | Storage management, export/import backup, PWA install, default rest timer, clear all data |
+| `/progress` | `Pages/Progress.razor` | Date-range filter (30d/90d/1y/All), summary tiles, streak + best-streak chips, activity heatmap (53 weeks), muscle-group filter, per-exercise cards with weight/duration/distance/pace bars, est. 1RM, expandable line/pace/volume charts, real PR badge (🏆) + Progressive-overload chip (PO) |
+| `/settings` | `Pages/Settings.razor` | Storage management (incl. **reconnect file** when permission expires), export/import backup, PWA install, default rest timer, weight/distance units, transient toast feedback, clear all data |
 | `/workouts-legacy/...` | `Pages/WorkoutEdit.razor` | **Deprecated** – do not use |
 
 ## Developer Workflows
@@ -204,6 +204,24 @@ Components currently implementing this pattern: `LogWorkout.razor`, `TemplateEdi
 | `gym_tracker_rest_default` | `int` (seconds) | Default rest timer preset; loaded in `LogWorkout.OnInitializedAsync` |
 | `gym_tracker_weight_unit` | `"kg"` \| `"lbs"` | Display unit for all weight values; loaded in `OnInitializedAsync` of every weight-showing page |
 | `gym_tracker_distance_unit` | `"km"` \| `"mi"` | Display unit for all cardio distance and pace values; loaded in `OnInitializedAsync` of every distance-showing page |
+| `gym_tracker_progress_range` | `int` (days, `0` = all) | Date-range filter on the Progress page; valid values `0`/`30`/`90`/`365` |
+
+### App version
+The version string shown on the Settings page is read at runtime from `AssemblyInformationalVersionAttribute` (with the `+<gitHash>` build-metadata suffix stripped). The single source of truth is the **`<Version>` MSBuild property in `Gym-tracker/Gym-tracker.csproj`** — bump it there, never hard-code a constant in `Settings.razor`. The SDK auto-emits `AssemblyVersion`, `FileVersion`, and `AssemblyInformationalVersion` from that one property. The full informational version (including hash, when available) is exposed via the `title="…"` tooltip on the version row for support diagnostics.
+
+### Import-validation caps
+`Pages/Settings.razor` defines `MaxTemplates` (500), `MaxLoggedWorkouts` (10 000), `MaxNameLength` (200), `MaxExercisesPerItem` (200), and `MaxImportFileBytes` (10 MB) as named constants in the `@code` block. These are sanity caps that reject obviously corrupt or hostile backup files at the import-confirm step. Bump them only if real users legitimately exceed them; do not reintroduce the original magic numbers inline.
+
+### Progress page
+`Pages/Progress.razor` builds an in-memory list of `ExerciseStat` objects from `_workouts` via `BuildStats()`. All per-exercise stats and summary tiles are scoped to the active **date range** (`_rangeDays`: `0`=all, `30`, `90`, `365`, persisted as `gym_tracker_progress_range`). Changing the range clears `_chartDataCache`, `_expandedCharts`, `_expandedPaceCharts`, and `_expandedVolumeCharts` before rebuilding so no stale per-exercise SVG paths leak across ranges.
+
+Stats surfaced on each card:
+- **PR badge (🏆)** — `PrCount` is the number of sessions whose best metric strictly beats every prior session (highest weight/duration/distance, lowest pace). Distinct from `PoCount`, which is the number of sessions the user manually flagged as **Progressive overload** (shown as a separate **PO ×N** chip).
+- **Streak chips** in the highlights row are computed in `ComputeStreaks()` (consecutive ISO weeks containing ≥1 workout). `MondayOf(DateTime)` is the helper used everywhere a week bucket is needed.
+- **Activity heatmap** is a 53-week × 7-day grid of `<rect>` cells coloured via the `.heatmap-cell--lvl0..4` CSS classes (purple ramp on-theme); rendered inside a `<details>` so it's collapsed by default and keyboard-toggleable.
+- **Charts** (`<svg>`) all carry `role="img"` + `aria-label` + `<title>` for screen readers; per-dot tooltips remain via `<title>` on each `<circle>`.
+
+When adding new range-scoped stats, derive them from `WorkoutsInRange` (or directly inside `BuildStats`) — never from raw `_workouts`. The four existing summary tiles + streak chips are intentionally **range-independent** (lifetime overview); only per-exercise cards and the body of `BuildStats` are filtered.
 
 ### Razor / Blazor pitfalls
 - **`@{ }` code blocks** inside nested `@else if { }` markup blocks cause `RZ1010` parse errors. Use C# properties or helper methods instead of inline variable declarations.
@@ -228,7 +246,7 @@ Components currently implementing this pattern: `LogWorkout.razor`, `TemplateEdi
 | `Gym-tracker/Models/Exercise.cs` | Template exercise + `MuscleGroup` + first-use defaults + last-session data |
 | `Gym-tracker/Models/LoggedExercise.cs` | Per-session exercise data including Notes and ProgressiveOverload |
 | `Gym-tracker/Models/LoggedWorkout.cs` | Completed session; carries `TemplateId?` for write-back and `DurationMinutes?` recorded by stopwatch |
-| `Gym-tracker/Pages/Home.razor` | Dashboard; Templates & Logged Workouts cards are live, Progress is placeholder |
+| `Gym-tracker/Pages/Home.razor` | Dashboard; Templates, Logged Workouts, and Progress cards all link to live pages |
 | `Gym-tracker/Pages/LogWorkout.razor` | Template picker, set-level logging, stopwatch timer, last-time hints, PO toggle, write-back on save |
 | `Gym-tracker/Pages/LogWorkout.razor.css` | Scoped styles: template picker, view toggle, stepper, last-time bar, PO toggle, notes, stopwatch chip (incl. `::placeholder` fix) |
 | `Gym-tracker/Pages/TemplateEdit.razor` | Create/edit template with per-exercise defaults (Sets, Reps, Weight/Duration), `MuscleBodyDiagram`, `ExerciseAutocomplete`, last-session read-only hint, and drag-to-reorder exercises |
@@ -236,7 +254,9 @@ Components currently implementing this pattern: `LogWorkout.razor`, `TemplateEdi
 | `Gym-tracker/Pages/Templates.razor` | List templates; has ▶ Start, ✎ Edit, ⧉ Duplicate, and 🗑 Delete buttons per card |
 | `Gym-tracker/Pages/Workouts.razor` | List / delete logged workouts; shows duration; **calendar is the default view** (`_viewMode = "calendar"`); has Export JSON button |
 | `Gym-tracker/Pages/Workouts.razor.css` | Scoped styles: view toggle, calendar grid, day cells, selected-date detail panel |
-| `Gym-tracker/Pages/Settings.razor` | Storage management (mode, change file, export, import), PWA install prompt, default rest timer preference, **weight unit toggle (kg/lbs)**, clear all data |
+| `Gym-tracker/Pages/Progress.razor` | Date-range filter, summary tiles, streak chips, activity heatmap, muscle filter, multi-sort, per-exercise stat cards (weight/duration/distance/pace + 1RM), expandable line/pace/volume charts, real PR + PO badges |
+| `Gym-tracker/Pages/Progress.razor.css` | Scoped styles: summary tiles, highlights, range/sort/filter chips, exercise cards, metric blocks, progress bars, SVG chart elements, activity heatmap (`heatmap-cell--lvl0..4` purple ramp), empty state |
+| `Gym-tracker/Pages/Settings.razor` | Storage management (incl. **reconnect file** branch via `WorkoutService.RequestPermissionAsync` + page reload), export/import backup with auto-clearing success banners and re-keyed `<InputFile>`, PWA install prompt (respects `accepted`/`dismissed` outcome), default rest timer preference, **weight unit toggle (kg/lbs)**, distance unit toggle (km/mi), version row sourced from assembly metadata, clear all data |
 | `Gym-tracker/Pages/Settings.razor.css` | Scoped styles: section cards, setting rows, preset pills, import confirm, danger zone |
 | `Gym-tracker/Shared/ExerciseAutocomplete.razor` | Debounced exercise name input with wger-powered dropdown; `OnExerciseSelected` callback carries `WgerExerciseInfo` |
 | `Gym-tracker/Shared/ExerciseAutocomplete.razor.css` | Scoped styles: dropdown, active item highlight |

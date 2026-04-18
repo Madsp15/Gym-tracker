@@ -148,6 +148,23 @@
 .settings-status--ok  { color: #1a8c6e; }
 .settings-status--err { color: #e0636a; }
 
+/* Transient toast (auto-clears after ~3 s). Shown at the bottom
+   of the settings page for ExportJson / InstallPwa feedback. */
+.settings-status--toast {
+    text-align: center;
+    padding: 0.6rem 1rem;
+    background: #14241d;
+    border: 1px solid #1a8c6e;
+    border-radius: 6px;
+    margin: 0.5rem 1rem 0;
+    animation: settings-toast-fade 0.25s ease-out;
+}
+
+@keyframes settings-toast-fade {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ── Danger zone confirm ─────────────────────────────────── */
 
 .settings-danger-confirm {

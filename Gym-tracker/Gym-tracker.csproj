@@ -6,6 +6,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
         <ServiceWorkerAssetsManifest>service-worker-assets.js</ServiceWorkerAssetsManifest>
+        <!-- Single source of truth for the app version shown on the Settings page.
+             The SDK propagates this to AssemblyVersion / FileVersion / AssemblyInformationalVersion. -->
+        <Version>1.0.0</Version>
     </PropertyGroup>
 
     <ItemGroup>

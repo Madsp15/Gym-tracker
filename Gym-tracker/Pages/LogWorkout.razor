@@ -97,6 +97,8 @@ else
                 }
             </p>
 
+            <div @key="_currentExerciseIndex" class="exercise-slide--@_slideDir"
+                 @ontouchstart="OnTouchStart" @ontouchend="OnTouchEnd">
             <div class="exercise-row @ExRowClass(StepExercise.Type)">
                 <div class="exercise-row__header">
                     <span class="exercise-row__num">@(_currentExerciseIndex + 1)</span>
@@ -219,6 +221,7 @@ else
                               placeholder="Notes (optional)"
                               @bind="StepExercise.Notes"></textarea>
                 </div>
+            </div>
             </div>
 
             <div class="exercise-stepper__nav">
@@ -409,6 +412,29 @@ else
     private Dictionary<string, Exercise> _templateExByName = new(StringComparer.OrdinalIgnoreCase);
     private bool _stepThrough = false;
     private int _currentExerciseIndex = 0;
+    private string _slideDir = "next"; // "next" | "prev"
+
+    // ── Swipe tracking ────────────────────────────────────
+    private double _touchStartX;
+    private double _touchStartY;
+
+    private void OnTouchStart(TouchEventArgs e)
+    {
+        if (e.Touches.Length == 0) return;
+        _touchStartX = e.Touches[0].ClientX;
+        _touchStartY = e.Touches[0].ClientY;
+    }
+
+    private void OnTouchEnd(TouchEventArgs e)
+    {
+        if (e.ChangedTouches.Length == 0) return;
+        var dx = e.ChangedTouches[0].ClientX - _touchStartX;
+        var dy = e.ChangedTouches[0].ClientY - _touchStartY;
+        // Require ≥50px horizontal movement that dominates vertical (no accidental scroll triggers)
+        if (Math.Abs(dx) < 50 || Math.Abs(dx) < Math.Abs(dy)) return;
+        if (dx < 0) NextExercise();  // swipe left  → next
+        else        PrevExercise();  // swipe right → prev
+    }
 
     // ── Stopwatch ─────────────────────────────────────────
     private CancellationTokenSource? _stopwatchCts;
@@ -591,7 +617,14 @@ else
                             DurationSeconds = e.DurationSeconds,
                             DistanceKm = e.DistanceKm
                         }).ToList();
-                return new LoggedExercise { Name = e.Name, Type = e.Type, Sets = sets };
+                return new LoggedExercise
+                {
+                    Name = e.Name,
+                    Type = e.Type,
+                    Sets = sets,
+                    Notes = e.LastNotes,
+                    ProgressiveOverload = e.LastProgressiveOverload
+                };
             })
             .ToList();
     }
@@ -635,9 +668,13 @@ else
     // ── Step-through ─────────────────────────────────────
 
     private void SetViewMode(bool stepThrough) { _stepThrough = stepThrough; _currentExerciseIndex = 0; }
-    private void GoToExercise(int index) => _currentExerciseIndex = index;
-    private void PrevExercise() { if (_currentExerciseIndex > 0) _currentExerciseIndex--; }
-    private void NextExercise() { if (_currentExerciseIndex < _workout.Exercises.Count - 1) _currentExerciseIndex++; }
+    private void GoToExercise(int index)
+    {
+        _slideDir = index > _currentExerciseIndex ? "next" : "prev";
+        _currentExerciseIndex = index;
+    }
+    private void PrevExercise() { if (_currentExerciseIndex > 0) { _slideDir = "prev"; _currentExerciseIndex--; } }
+    private void NextExercise() { if (_currentExerciseIndex < _workout.Exercises.Count - 1) { _slideDir = "next"; _currentExerciseIndex++; } }
 
     private string ViewBtnClass(bool forStep) =>
         forStep == _stepThrough ? "view-toggle__btn view-toggle__btn--active" : "view-toggle__btn";
@@ -651,7 +688,12 @@ else
         var ex = new LoggedExercise { Type = ExerciseType.RepsWeight };
         ex.Sets.Add(new ExerciseSet());
         _workout.Exercises.Add(ex);
-        if (_stepThrough) _currentExerciseIndex = _workout.Exercises.Count - 1;
+        // Only jump to the new exercise if we were already on the last one
+        if (_stepThrough && _currentExerciseIndex == _workout.Exercises.Count - 2)
+        {
+            _slideDir = "next";
+            _currentExerciseIndex = _workout.Exercises.Count - 1;
+        }
     }
 
     private void RemoveExercise(int idx)

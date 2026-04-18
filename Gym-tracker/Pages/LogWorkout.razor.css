@@ -455,3 +455,26 @@
     flex-shrink: 0;
 }
 
+/* ── Exercise step-through slide animation ───────────── */
+
+@keyframes slide-in-from-right {
+    from { opacity: 0; transform: translateX(40px); }
+    to   { opacity: 1; transform: translateX(0);    }
+}
+
+@keyframes slide-in-from-left {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: translateX(0);     }
+}
+
+.exercise-slide--next {
+    animation: slide-in-from-right 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    overflow: hidden;
+    touch-action: pan-y;
+}
+
+.exercise-slide--prev {
+    animation: slide-in-from-left 0.22s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    overflow: hidden;
+    touch-action: pan-y;
+}
